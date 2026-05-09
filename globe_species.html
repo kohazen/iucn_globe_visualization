@@ -1840,6 +1840,8 @@ async function addSpeciesFromIUCN(taxonResult,btnEl){
     renderFromState(computeFilterState());
     renderMySpeciesPanel();
     btnEl.textContent='✓ Added!';
+    setHighlight(species);
+    globe.pointOfView({lat:jitteredLat(species),lng:jitteredLng(species),altitude:1.8},800);
   }catch(e){btnEl.textContent='Error';btnEl.disabled=false;}
 }
 
@@ -1859,13 +1861,13 @@ function renderMySpeciesPanel(){
   if(!USER_SPECIES.length){section.style.display='none';return;}
   section.style.display='block';
   list.innerHTML=USER_SPECIES.map(s=>`
-    <div class="my-species-item">
+    <div class="my-species-item" style="cursor:pointer" onclick="(function(){const sp=USER_SPECIES.find(x=>x.name===${JSON.stringify(s.name)});if(sp){openSidebar(sp);setHighlight(sp);}})()" title="Go to species">
       <span class="ms-dot" style="background:${STATUS_COLORS[s.status]||'#aaa'}"></span>
       <div class="ms-name">
         <div class="ms-common">${s.common}</div>
         <div class="ms-sci">${s.name}</div>
       </div>
-      <button class="ms-remove" onclick="removeUserSpecies(${JSON.stringify(s.name)})" title="Remove from globe">✕</button>
+      <button class="ms-remove" onclick="event.stopPropagation();removeUserSpecies(${JSON.stringify(s.name)})" title="Remove from globe">✕</button>
     </div>
   `).join('');
 }
