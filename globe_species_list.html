@@ -409,7 +409,7 @@ function renderTable(){
     filtered.length===SPECIES_DATA.length?'species':`of ${SPECIES_DATA.length} species`;
 
   const tbody=document.getElementById('table-body');
-  tbody.innerHTML=filtered.map((s,i)=>`<tr class="clickable" onclick="goToGlobe(${JSON.stringify(s.name)})">
+  tbody.innerHTML=filtered.map((s,i)=>`<tr class="clickable" data-name="${s.name.replace(/"/g,'&quot;')}">
     <td style="color:var(--text-secondary)">${i+1}</td>
     <td><strong>${highlight(s.common,searchQuery)}</strong>${s._userAdded?'<span class="user-badge">My Species</span>':''}</td>
     <td style="font-style:italic;color:var(--text-secondary)">${highlight(s.name,searchQuery)}</td>
@@ -423,6 +423,11 @@ function renderTable(){
 document.getElementById('search-input').addEventListener('input',e=>{
   searchQuery=e.target.value.trim();
   renderTable();
+});
+
+document.getElementById('table-body').addEventListener('click',e=>{
+  const row=e.target.closest('tr[data-name]');
+  if(row)goToGlobe(row.dataset.name);
 });
 
 renderTable();
