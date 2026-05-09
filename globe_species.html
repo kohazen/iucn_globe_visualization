@@ -1983,6 +1983,14 @@ function renderMySpeciesPanel(){
 
 renderMySpeciesPanel();
 
+// Open species from URL param (e.g. from species list page)
+(()=>{
+  const param=new URLSearchParams(location.search).get('species');
+  if(!param)return;
+  const sp=SPECIES_DATA.concat(USER_SPECIES).find(s=>s.name===param);
+  if(sp)globe.onGlobeReady(()=>{setTimeout(()=>{openSidebar(sp);setHighlight(sp);},300);});
+})();
+
 // Patch old user species that have no coords
 (async()=>{
   let patched=false;

@@ -39,6 +39,18 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 .page-header h1{font-size:20px;font-weight:800;letter-spacing:-0.5px}
 .page-header .subtitle{font-size:11px;color:var(--text-secondary);margin-top:2px}
 
+/* Search */
+#search-wrap{position:relative;flex-shrink:0;margin-bottom:10px}
+#search-input{
+  width:100%;padding:9px 12px 9px 34px;border-radius:10px;
+  background:var(--card-bg);border:1px solid var(--glass-border);
+  color:var(--text-primary);font-size:13px;outline:none;font-family:inherit;
+  transition:border-color 0.2s;
+}
+#search-input:focus{border-color:rgba(21,101,192,0.4);}
+#search-input::placeholder{color:rgba(160,160,152,0.6)}
+#search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;opacity:0.5}
+
 /* Filter bar */
 .filter-row{display:flex;gap:8px;align-items:center;flex-shrink:0;margin-bottom:12px;flex-wrap:wrap}
 .filter-btn{
@@ -74,13 +86,17 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
   position:sticky;top:0;background:rgba(8,8,12,0.97);z-index:5;
 }
 .data-table td{font-size:12px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,0.04)}
-.data-table tr{transition:background 0.15s}
-.data-table tr:hover td{background:rgba(255,255,255,0.03)}
+.data-table tr.clickable{cursor:pointer;transition:background 0.15s}
+.data-table tr.clickable:hover td{background:rgba(255,255,255,0.05)}
+.data-table tr.clickable:hover .view-hint{opacity:1}
 .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
 .taxon-tag{
   font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;
   background:rgba(255,255,255,0.06);color:var(--text-secondary);
 }
+.view-hint{font-size:10px;color:var(--text-secondary);opacity:0;transition:opacity 0.15s;white-space:nowrap}
+.user-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:6px;background:rgba(29,158,117,0.18);color:#1D9E75;margin-left:6px;vertical-align:middle}
+mark{background:rgba(255,200,50,0.25);color:inherit;border-radius:2px}
 </style>
 </head>
 <body>
@@ -99,7 +115,12 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 <div class="page-wrap">
   <div class="page-header">
     <h1>Species Registry</h1>
-    <p class="subtitle">Complete list of tracked species sorted by conservation priority</p>
+    <p class="subtitle">Complete list of tracked species — click any row to view on globe</p>
+  </div>
+
+  <div id="search-wrap">
+    <span id="search-icon">🔍</span>
+    <input id="search-input" type="text" placeholder="Search by name or scientific name…" autocomplete="off" spellcheck="false"/>
   </div>
 
   <div class="filter-row">
@@ -111,6 +132,9 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
     </button>
     <button class="filter-btn active" data-status="VU" onclick="toggleStatus(this)">
       <span class="dot" style="background:#40C8F4"></span> VU
+    </button>
+    <button class="filter-btn active" data-status="NC" onclick="toggleStatus(this)">
+      <span class="dot" style="background:#888888"></span> Other
     </button>
     <span class="filter-sep"></span>
     <button class="filter-btn active" data-taxon="MAMMALIA" onclick="toggleTaxon(this)">🐾 Mammals</button>
@@ -124,7 +148,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
   <div class="table-wrap">
     <table class="data-table" id="species-table">
       <thead><tr>
-        <th>#</th><th>Species</th><th>Scientific Name</th><th>Status</th><th>Taxon</th><th>Location</th>
+        <th>#</th><th>Species</th><th>Scientific Name</th><th>Status</th><th>Taxon</th><th>Location</th><th></th>
       </tr></thead>
       <tbody id="table-body"></tbody>
     </table>
@@ -132,7 +156,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 </div>
 
 <script>
-const SPECIES_DATA=[
+const BASE_SPECIES=[
   {name:"Panthera pardus orientalis",common:"Amur Leopard",status:"CR",taxon:"MAMMALIA",lat:43.5,lng:134.0},
   {name:"Rhinoceros sondaicus",common:"Javan Rhino",status:"CR",taxon:"MAMMALIA",lat:-7.5,lng:106.5},
   {name:"Pongo abelii",common:"Sumatran Orangutan",status:"CR",taxon:"MAMMALIA",lat:3.5,lng:97.5},
@@ -335,11 +359,15 @@ const SPECIES_DATA=[
   {name:"Manta birostris",common:"Oceanic Manta Ray",status:"VU",taxon:"CHONDRICHTHYES",lat:15.0,lng:65.0},
 ];
 
-const STATUS_COLORS={CR:'#FF5252',EN:'#FFB347',VU:'#40C8F4'};
+const USER_SPECIES=JSON.parse(localStorage.getItem('iucn_user_species')||'[]');
+const SPECIES_DATA=BASE_SPECIES.concat(USER_SPECIES);
+
+const STATUS_COLORS={CR:'#FF5252',EN:'#FFB347',VU:'#40C8F4',NC:'#888888'};
 const TAXON_NAMES={MAMMALIA:'Mammalia',AVES:'Aves',REPTILIA:'Reptilia',AMPHIBIA:'Amphibia',CHONDRICHTHYES:'Chondrichthyes'};
-const priority=['CR','EN','VU'];
-let activeStatuses=new Set(['CR','EN','VU']);
+const priority=['CR','EN','VU','NC'];
+let activeStatuses=new Set(['CR','EN','VU','NC']);
 let activeTaxons=new Set(['MAMMALIA','AVES','REPTILIA','AMPHIBIA','CHONDRICHTHYES']);
+let searchQuery='';
 
 function toggleStatus(btn){
   const s=btn.dataset.status;
@@ -354,25 +382,49 @@ function toggleTaxon(btn){
   renderTable();
 }
 
+function highlight(text,q){
+  if(!q)return text;
+  const idx=text.toLowerCase().indexOf(q.toLowerCase());
+  if(idx===-1)return text;
+  return text.slice(0,idx)+'<mark>'+text.slice(idx,idx+q.length)+'</mark>'+text.slice(idx+q.length);
+}
+
+function goToGlobe(name){
+  location.href='globe_species.html?species='+encodeURIComponent(name);
+}
+
 function renderTable(){
+  const q=searchQuery.toLowerCase();
   const filtered=SPECIES_DATA
-    .filter(s=>activeStatuses.has(s.status)&&activeTaxons.has(s.taxon))
+    .filter(s=>{
+      if(!activeStatuses.has(s.status))return false;
+      if(!activeTaxons.has(s.taxon))return false;
+      if(q&&!s.common.toLowerCase().includes(q)&&!s.name.toLowerCase().includes(q))return false;
+      return true;
+    })
     .sort((a,b)=>priority.indexOf(a.status)-priority.indexOf(b.status));
-  
+
   document.getElementById('count-num').textContent=filtered.length;
   document.getElementById('count-label').textContent=
     filtered.length===SPECIES_DATA.length?'species':`of ${SPECIES_DATA.length} species`;
 
   const tbody=document.getElementById('table-body');
-  tbody.innerHTML=filtered.map((s,i)=>`<tr>
+  tbody.innerHTML=filtered.map((s,i)=>`<tr class="clickable" onclick="goToGlobe(${JSON.stringify(s.name)})">
     <td style="color:var(--text-secondary)">${i+1}</td>
-    <td><strong>${s.common}</strong></td>
-    <td style="font-style:italic;color:var(--text-secondary)">${s.name}</td>
-    <td><span class="status-dot" style="background:${STATUS_COLORS[s.status]}"></span>${s.status}</td>
+    <td><strong>${highlight(s.common,searchQuery)}</strong>${s._userAdded?'<span class="user-badge">My Species</span>':''}</td>
+    <td style="font-style:italic;color:var(--text-secondary)">${highlight(s.name,searchQuery)}</td>
+    <td><span class="status-dot" style="background:${STATUS_COLORS[s.status]||'#888'}"></span>${s.status}</td>
     <td><span class="taxon-tag">${TAXON_NAMES[s.taxon]||s.taxon}</span></td>
     <td>${s.lat.toFixed(1)}°, ${s.lng.toFixed(1)}°</td>
+    <td><span class="view-hint">View on globe →</span></td>
   </tr>`).join('');
 }
+
+document.getElementById('search-input').addEventListener('input',e=>{
+  searchQuery=e.target.value.trim();
+  renderTable();
+});
+
 renderTable();
 </script>
 </body>
