@@ -279,14 +279,14 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .skeleton-img{position:absolute;inset:0;background:linear-gradient(90deg,var(--card-bg) 25%,var(--sidebar-border) 50%,var(--card-bg) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite}
 .zoom-pill{
-  position:absolute;bottom:8px;left:50%;transform:translateX(-50%) translateY(4px);
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%) translateY(0);
   background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);
   color:#fff;font-size:11px;font-weight:600;letter-spacing:0.3px;
   padding:4px 10px;border-radius:20px;white-space:nowrap;pointer-events:none;
-  opacity:0;transition:opacity 0.2s ease,transform 0.2s ease;
+  opacity:0;transition:opacity 0.5s ease;
 }
-#featured-image-wrap:hover .zoom-pill,
-#species-image-wrap:hover .zoom-pill{opacity:1;transform:translateX(-50%) translateY(0)}
+.zoom-pill.visible{opacity:1;}
+.zoom-pill.fade{opacity:0;transition:opacity 1s ease;}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 #species-header h2{font-size:17px;font-weight:700;margin-bottom:4px}
 .detail-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--sidebar-border)}
@@ -1422,7 +1422,7 @@ function makePlaceholderImage(name){
 // ── FEATURED IMAGE ────────────────────────────────────────────────
 async function loadFeaturedImage(){
   const img=await fetchWikipediaImage('Bengal Tiger');
-  if(img)document.getElementById('featured-image').src=img;
+  if(img){document.getElementById('featured-image').src=img;flashZoomPill('featured-image-wrap');}
 }
 loadFeaturedImage();
 
@@ -1618,7 +1618,7 @@ function populateSidebar(species,data){
 
   document.getElementById('species-image-skeleton').style.display='none';
   const imgEl=document.getElementById('species-image');
-  if(data.image){imgEl.src=data.image;imgEl.style.display='block'}
+  if(data.image){imgEl.src=data.image;imgEl.style.display='block';flashZoomPill('species-image-wrap');}
   else{imgEl.style.display='none'}
 
   const nt=document.getElementById('narrative-text');
@@ -1654,6 +1654,19 @@ function showSidebarError(msg){
   document.getElementById('population-text').textContent='';
   document.getElementById('habitats-list').innerHTML='';
   document.getElementById('threats-list').innerHTML='';
+}
+
+const _pillTimers={};
+function flashZoomPill(id){
+  const pill=document.querySelector(`#${id} .zoom-pill`);
+  if(!pill)return;
+  clearTimeout(_pillTimers[id]);
+  pill.classList.remove('fade');
+  pill.classList.add('visible');
+  _pillTimers[id]=setTimeout(()=>{
+    pill.classList.add('fade');
+    setTimeout(()=>pill.classList.remove('visible','fade'),1000);
+  },3000);
 }
 
 function openImgOverlay(src){
