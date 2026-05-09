@@ -1815,6 +1815,17 @@ async function getSpeciesCoords(assessmentId){
   return null;
 }
 
+async function getINatObsCoords(sciName){
+  try{
+    const res=await fetch(`https://api.inaturalist.org/v1/observations?taxon_name=${encodeURIComponent(sciName)}&quality_grade=research&per_page=1&order_by=votes`);
+    if(!res.ok)return null;
+    const data=await res.json();
+    const obs=data.results?.[0];
+    if(obs?.location){const[la,ln]=obs.location.split(',').map(Number);if(la&&ln)return[la,ln];}
+  }catch(e){}
+  return null;
+}
+
 async function addSpeciesFromIUCN(taxonResult,btnEl){
   btnEl.disabled=true;
   btnEl.textContent='⏳';
@@ -1832,6 +1843,7 @@ async function addSpeciesFromIUCN(taxonResult,btnEl){
     let lat=0,lng=0;
     const assessId=latest.assessmentId||latest.id;
     if(assessId){const coords=await getSpeciesCoords(assessId);if(coords)[lat,lng]=coords;}
+    if(!lat&&!lng){const coords=await getINatObsCoords(taxonResult.scientificName);if(coords)[lat,lng]=coords;}
     const commonNames=taxonResult.commonNames||[];
     const common=commonNames.find(n=>/english/i.test(n.language))?.name||commonNames[0]?.name||sciName;
     const species={id:0,name:sciName,common,status,iucnStatus:rawStatus,taxon:iucnClassToTaxon(taxonResult.className),lat,lng,_userAdded:true};
