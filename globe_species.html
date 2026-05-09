@@ -1672,22 +1672,34 @@ function toggleAddPanel(){
 }
 
 async function searchIUCNByCommonName(query){
-  // taxon_id=1 = Animalia — filters out plants, fungi, etc.
-  const res=await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(query)}&rank=species&per_page=20&taxon_id=1`);
-  if(!res.ok)return[];
-  const data=await res.json();
+  const enc=encodeURIComponent(query);
+  // Two parallel fetches: vertebrate classes first, then all Animalia as supplement
+  // Mammalia=40151, Aves=3, Reptilia=26036, Amphibia=20978, Chondrichthyes=47273
+  const VERT='taxon_id[]=40151&taxon_id[]=3&taxon_id[]=26036&taxon_id[]=20978&taxon_id[]=47273';
+  const [r1,r2]=await Promise.all([
+    fetch(`https://api.inaturalist.org/v1/taxa?q=${enc}&${VERT}&per_page=20`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`https://api.inaturalist.org/v1/taxa?q=${enc}&taxon_id=1&per_page=20`).then(r=>r.ok?r.json():null).catch(()=>null),
+  ]);
+  // Merge: vertebrate results first, then fill with Animalia results not already included
+  const seen=new Set();
+  const merged=[];
+  for(const d of [...(r1?.results||[]),...(r2?.results||[])]){
+    if(!d.name||seen.has(d.name))continue;
+    if(d.rank!=='species'&&d.rank!=='subspecies')continue;
+    seen.add(d.name);
+    merged.push(d);
+  }
   const q=query.toLowerCase();
-  const ranked=(data.results||[])
-    .filter(d=>d.name&&d.rank==='species')
-    .map(d=>{
-      const cn=(d.preferred_common_name||'').toLowerCase();
-      const sn=d.name.toLowerCase();
-      const lastWord=cn.split(' ').pop();
-      // score 0: exact; 1: query is last word of common name (e.g. "Bengal tiger" for "tiger");
-      // 2: common name starts with query; 3: sci name starts; 4: common name includes; 5: other
-      const score=cn===q?0:lastWord===q?1:cn.startsWith(q)?2:sn.startsWith(q)?3:cn.includes(q)?4:5;
-      return{score,d};
-    });
+  const ranked=merged.map(d=>{
+    const cn=(d.preferred_common_name||'').toLowerCase();
+    const sn=d.name.toLowerCase();
+    const lastWord=cn.split(' ').pop();
+    // score 0: exact; 1: last word matches (Bengal tiger→tiger); 2: starts with; 3: sci name starts; 4: includes; 5: other
+    const score=cn===q?0:lastWord===q?1:cn.startsWith(q)?2:sn.startsWith(q)?3:cn.includes(q)?4:5;
+    // vertebrate classes rank above insects/other invertebrates
+    const vertBonus=['Mammalia','Aves','Reptilia','Amphibia','Actinopterygii','Chondrichthyes'].includes(d.iconic_taxon_name)?0:1;
+    return{score:score*10+vertBonus,d};
+  });
   ranked.sort((a,b)=>a.score-b.score||(b.d.observations_count||0)-(a.d.observations_count||0));
   return ranked.slice(0,12).map(({d})=>({
     scientificName:d.name,
