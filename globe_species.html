@@ -326,6 +326,68 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
   #legend{right:16px;bottom:calc(50vh + 60px)}
   #filter-panel{top:auto;bottom:calc(50vh + 16px)}
 }
+/* Add Species from IUCN */
+#add-species-wrap{padding:0 16px 12px;border-bottom:1px solid var(--sidebar-border)}
+#add-species-toggle{
+  width:100%;display:flex;align-items:center;gap:6px;padding:7px 12px;
+  background:var(--card-bg);border:1px solid var(--glass-border);
+  border-radius:10px;color:var(--text-secondary);font-size:12px;font-weight:500;
+  font-family:inherit;cursor:pointer;transition:all 0.2s;text-align:left;
+}
+#add-species-toggle:hover{background:var(--overlay-bg-hover);color:var(--text-primary);border-color:rgba(21,101,192,0.4)}
+#add-species-panel{margin-top:8px;display:none}
+#add-species-panel.open{display:block}
+#add-search-wrap{position:relative;margin-bottom:4px}
+#add-search-input{
+  width:100%;padding:8px 12px 8px 30px;border-radius:8px;
+  background:var(--overlay-bg);border:1px solid var(--glass-border);
+  color:var(--text-primary);font-size:12px;outline:none;font-family:inherit;
+  transition:all 0.2s;box-sizing:border-box;
+}
+#add-search-input:focus{border-color:var(--input-focus-border)}
+#add-search-input::placeholder{color:var(--search-placeholder)}
+#add-search-icon{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  font-size:12px;color:var(--text-secondary);pointer-events:none;
+}
+#add-search-status{font-size:11px;color:var(--text-secondary);padding:4px 2px;min-height:16px}
+#add-search-results{
+  background:var(--overlay-bg-hover);border:1px solid var(--glass-border);
+  border-radius:8px;max-height:260px;overflow-y:auto;
+  display:none;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:var(--overlay-shadow);
+}
+.add-result-item{
+  padding:8px 10px;cursor:default;font-size:12px;
+  border-bottom:1px solid var(--sidebar-border);
+  display:flex;align-items:center;gap:8px;
+}
+.add-result-item:last-child{border-bottom:none}
+.add-result-item .ar-info{flex:1;min-width:0}
+.add-result-item .ar-common{font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.add-result-item .ar-sci{font-style:italic;color:var(--text-secondary);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.add-result-item .ar-class{font-size:10px;color:var(--text-secondary);opacity:0.7}
+.add-btn{
+  flex-shrink:0;padding:4px 10px;border-radius:6px;
+  background:rgba(21,101,192,0.2);border:1px solid rgba(21,101,192,0.4);
+  color:#B5D4F4;font-size:11px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:all 0.15s;white-space:nowrap;
+}
+.add-btn:hover:not(:disabled){background:rgba(21,101,192,0.38)}
+.add-btn:disabled{opacity:0.55;cursor:default}
+/* My Species */
+#my-species-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--sidebar-border);display:none}
+#my-species-section h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-secondary);margin-bottom:8px}
+.my-species-item{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;
+  border-radius:8px;background:var(--card-bg);margin-bottom:4px;font-size:12px;
+}
+.my-species-item .ms-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.my-species-item .ms-name{flex:1;min-width:0}
+.my-species-item .ms-common{font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.my-species-item .ms-sci{font-style:italic;color:var(--text-secondary);font-size:10px}
+.ms-remove{background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:13px;padding:0;line-height:1;flex-shrink:0}
+.ms-remove:hover{color:#f87171}
 </style>
 </head>
 <body>
@@ -416,6 +478,17 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
       <input id="search-input" type="text" placeholder="Search species…" autocomplete="off" spellcheck="false"/>
       <div id="search-results"></div>
     </div>
+    <div id="add-species-wrap">
+      <button id="add-species-toggle" onclick="toggleAddPanel()">＋ Add species from IUCN</button>
+      <div id="add-species-panel">
+        <div id="add-search-wrap">
+          <span id="add-search-icon">🔍</span>
+          <input id="add-search-input" type="text" placeholder="Search by common name…" autocomplete="off" spellcheck="false"/>
+        </div>
+        <div id="add-search-status"></div>
+        <div id="add-search-results"></div>
+      </div>
+    </div>
     <div id="intro-panel">
       <div id="featured-image-wrap" onclick="openImgOverlay(document.getElementById('featured-image').src)">
         <img id="featured-image" src="" alt="Bengal Tiger"/>
@@ -457,6 +530,10 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
           <button id="api-key-save" onclick="saveApiKey()">Save</button>
         </div>
         <p id="api-key-hint">Uses your saved browser token.<br/>Get a free token at <a href="https://api.iucnredlist.org" target="_blank" style="color:#B5D4F4">api.iucnredlist.org</a> (V4)</p>
+      </div>
+      <div id="my-species-section">
+        <h4>My Species</h4>
+        <div id="my-species-list"></div>
       </div>
     </div>
 
@@ -1063,7 +1140,8 @@ globe
 // Ring layer: CR pulsing rings + highlight ring
 
 function computeFilterState(){
-  const visible=SPECIES_DATA.filter(s=>activeFilters.has(s.status)&&activeTaxons.has(s.taxon));
+  const pool=SPECIES_DATA.concat(USER_SPECIES);
+  const visible=pool.filter(s=>activeFilters.has(s.status)&&activeTaxons.has(s.taxon));
   const counts={CR:0,EN:0,VU:0};
   const taxonCounts={MAMMALIA:0,AVES:0,REPTILIA:0,AMPHIBIA:0,CHONDRICHTHYES:0};
   for(const s of visible){
@@ -1074,7 +1152,7 @@ function computeFilterState(){
     ...visible.filter(s=>s.status==='CR').map(s=>({...s,_ring:'cr'})),
     ...(_hl?[{..._hl,_ring:'hl'}]:[])
   ];
-  return{visible,counts,taxonCounts,rings,isAllActive:activeFilters.size===3&&activeTaxons.size===5};
+  return{visible,counts,taxonCounts,rings,isAllActive:activeFilters.size===3&&activeTaxons.size===5,total:pool.length};
 }
 
 function renderFromState(state){
@@ -1083,7 +1161,7 @@ function renderFromState(state){
   const countEl=document.getElementById('count-num');
   const labelEl=document.getElementById('count-label');
   if(countEl)countEl.textContent=state.visible.length;
-  if(labelEl)labelEl.textContent=state.visible.length===SPECIES_DATA.length?'species visible':`of ${SPECIES_DATA.length} species visible`;
+  if(labelEl)labelEl.textContent=state.visible.length===state.total?'species visible':`of ${state.total} species visible`;
   ['CR','EN','VU'].forEach(s=>{
     const l=document.getElementById('legend-'+s.toLowerCase());if(l)l.textContent=state.counts[s];
     const sc=document.getElementById('stat-'+s.toLowerCase());if(sc)sc.textContent=state.counts[s];
@@ -1653,6 +1731,184 @@ function flashZoomPill(id){
     setTimeout(()=>pill.classList.remove('visible','fade'),1000);
   },3000);
 }
+
+// ── USER-ADDED SPECIES ────────────────────────────────────────────
+
+const USER_SPECIES=JSON.parse(localStorage.getItem('iucn_user_species')||'[]');
+
+function saveUserSpecies(){localStorage.setItem('iucn_user_species',JSON.stringify(USER_SPECIES));}
+
+const COUNTRY_CENTROIDS={
+  'AD':[42.5,1.5],'AE':[24.0,54.0],'AF':[33.0,65.0],'AG':[17.1,-61.8],'AL':[41.0,20.0],
+  'AM':[40.0,45.0],'AO':[-11.2,17.9],'AR':[-34.0,-64.0],'AT':[47.3,13.3],'AU':[-27.0,133.0],
+  'AZ':[40.3,47.6],'BA':[44.2,17.7],'BB':[13.2,-59.6],'BD':[24.0,90.0],'BE':[50.8,4.5],
+  'BF':[13.0,-2.0],'BG':[43.0,25.0],'BH':[26.0,50.6],'BI':[-3.5,30.0],'BJ':[9.3,2.3],
+  'BN':[4.5,114.7],'BO':[-17.0,-65.0],'BR':[-10.0,-55.0],'BS':[25.0,-77.4],'BT':[27.5,90.5],
+  'BW':[-22.0,24.0],'BY':[53.0,28.0],'BZ':[17.3,-88.5],'CA':[60.0,-95.0],'CD':[-4.0,24.0],
+  'CF':[7.0,21.0],'CG':[-1.0,15.0],'CH':[47.0,8.0],'CI':[8.0,-5.5],'CL':[-30.0,-71.0],
+  'CM':[6.0,12.0],'CN':[35.0,105.0],'CO':[4.0,-72.0],'CR':[10.0,-84.0],'CU':[22.0,-80.0],
+  'CV':[16.0,-24.0],'CY':[35.0,33.0],'CZ':[50.0,15.5],'DE':[51.0,9.0],'DJ':[11.5,43.0],
+  'DK':[56.0,10.0],'DZ':[28.0,3.0],'EC':[-2.0,-77.5],'EE':[59.0,25.0],'EG':[27.0,30.0],
+  'ER':[15.0,39.0],'ES':[40.0,-4.0],'ET':[9.0,38.7],'FI':[64.0,26.0],'FJ':[-18.0,175.0],
+  'FR':[46.0,2.0],'GA':[-1.0,11.8],'GB':[54.0,-2.0],'GE':[42.0,43.5],'GH':[8.0,-2.0],
+  'GM':[13.5,-15.5],'GN':[11.0,-10.0],'GQ':[2.0,10.0],'GR':[39.0,22.0],'GT':[15.5,-90.3],
+  'GW':[12.0,-15.0],'GY':[5.0,-59.0],'HN':[15.0,-86.5],'HR':[45.2,15.5],'HT':[19.0,-72.4],
+  'HU':[47.0,20.0],'ID':[-5.0,120.0],'IE':[53.0,-8.0],'IL':[31.5,34.8],'IN':[20.0,77.0],
+  'IQ':[33.0,44.0],'IR':[32.0,53.0],'IS':[65.0,-18.0],'IT':[42.8,12.8],'JM':[18.2,-77.5],
+  'JO':[31.0,36.0],'JP':[36.0,138.0],'KE':[1.0,38.0],'KG':[41.0,75.0],'KH':[13.0,105.0],
+  'KP':[40.0,127.0],'KR':[37.0,128.0],'KW':[29.5,45.7],'KZ':[48.0,68.0],'LA':[18.0,105.0],
+  'LB':[33.9,35.5],'LK':[7.0,81.0],'LR':[6.5,-9.5],'LS':[-29.5,28.5],'LT':[56.0,24.0],
+  'LV':[57.0,25.0],'LY':[27.0,17.0],'MA':[32.0,-5.0],'MD':[47.0,29.0],'ME':[42.8,19.5],
+  'MG':[-20.0,47.0],'MK':[41.6,21.7],'ML':[17.0,-4.0],'MM':[22.0,96.0],'MN':[46.0,105.0],
+  'MR':[20.0,-12.0],'MW':[-13.5,34.0],'MX':[23.0,-102.0],'MY':[2.5,112.5],'MZ':[-18.0,35.0],
+  'NA':[-22.0,17.0],'NE':[16.0,8.0],'NG':[10.0,8.0],'NI':[13.0,-85.0],'NL':[52.3,5.3],
+  'NO':[62.0,10.0],'NP':[28.0,84.0],'NZ':[-41.0,174.0],'OM':[21.0,57.0],'PA':[9.0,-80.0],
+  'PE':[-10.0,-76.0],'PG':[-6.0,147.0],'PH':[13.0,122.0],'PK':[30.0,70.0],'PL':[52.0,20.0],
+  'PT':[39.5,-8.0],'PY':[-23.0,-58.0],'QA':[25.5,51.2],'RO':[46.0,25.0],'RS':[44.0,21.0],
+  'RU':[60.0,100.0],'RW':[-2.0,30.0],'SA':[25.0,45.0],'SB':[-8.0,159.0],'SD':[15.0,30.0],
+  'SE':[62.0,15.0],'SG':[1.4,103.8],'SI':[46.0,15.0],'SK':[48.7,19.5],'SL':[8.5,-11.5],
+  'SN':[14.0,-14.0],'SO':[6.0,48.0],'SR':[4.0,-56.0],'SS':[7.0,30.0],'SV':[13.8,-88.9],
+  'SY':[35.0,38.0],'SZ':[-26.5,31.5],'TD':[15.0,19.0],'TG':[8.0,1.2],'TH':[15.0,101.0],
+  'TJ':[39.0,71.0],'TL':[-8.9,125.7],'TM':[40.0,60.0],'TN':[34.0,9.0],'TR':[39.0,35.0],
+  'TT':[11.0,-61.0],'TW':[23.7,121.0],'TZ':[-6.0,35.0],'UA':[49.0,32.0],'UG':[1.0,32.0],
+  'US':[38.0,-97.0],'UY':[-33.0,-56.0],'UZ':[41.0,64.0],'VE':[8.0,-66.0],'VN':[16.0,108.0],
+  'YE':[15.5,48.0],'ZA':[-29.0,25.0],'ZM':[-13.0,28.0],'ZW':[-20.0,30.0]
+};
+
+function iucnClassToTaxon(className){
+  const map={MAMMALIA:'MAMMALIA',AVES:'AVES',REPTILIA:'REPTILIA',AMPHIBIA:'AMPHIBIA',CHONDRICHTHYES:'CHONDRICHTHYES'};
+  return map[(className||'').toUpperCase()]||'MAMMALIA';
+}
+
+function toggleAddPanel(){
+  const panel=document.getElementById('add-species-panel');
+  const btn=document.getElementById('add-species-toggle');
+  const open=panel.classList.toggle('open');
+  btn.textContent=open?'✕ Close':'＋ Add species from IUCN';
+  if(open)setTimeout(()=>document.getElementById('add-search-input').focus(),50);
+}
+
+async function searchIUCNByCommonName(query){
+  const res=await iucnFetch(`/api/iucn/taxa/common_name?name=${encodeURIComponent(query)}`);
+  if(!res.ok)return[];
+  const data=await res.json();
+  return data.taxa||data.result||[];
+}
+
+async function getSpeciesCoords(assessmentId){
+  try{
+    const res=await iucnFetch(`/api/iucn/assessments/${assessmentId}/countries`);
+    if(!res.ok)return null;
+    const data=await res.json();
+    const countries=data.countries||data.result||[];
+    for(const c of countries){
+      const iso=(c.country?.isoCode2||c.isoCode2||c.isoCode||c.code||'').toUpperCase();
+      if(iso&&COUNTRY_CENTROIDS[iso])return COUNTRY_CENTROIDS[iso];
+    }
+  }catch(e){}
+  return null;
+}
+
+async function addSpeciesFromIUCN(taxonResult,btnEl){
+  btnEl.disabled=true;
+  btnEl.textContent='⏳';
+  try{
+    const sciName=taxonResult.scientificName;
+    if(SPECIES_DATA.concat(USER_SPECIES).some(s=>s.name===sciName)){
+      btnEl.textContent='✓ On globe';return;
+    }
+    const{assessments,authError}=await fetchAssessmentsByScientificName(sciName);
+    if(authError){btnEl.textContent='🔑 Auth';btnEl.disabled=false;return;}
+    if(!assessments?.length){btnEl.textContent='Not found';btnEl.disabled=false;return;}
+    const latest=assessments[0];
+    const status=latest.redListCategory?.code||latest.category||latest.status;
+    if(!['CR','EN','VU'].includes(status)){
+      btnEl.textContent=status?`${status} — not threatened`:'Unknown';
+      btnEl.title='Only CR/EN/VU species are shown on this threatened-species globe';
+      return;
+    }
+    let lat=0,lng=0;
+    const assessId=latest.assessmentId||latest.id;
+    if(assessId){const coords=await getSpeciesCoords(assessId);if(coords)[lat,lng]=coords;}
+    const commonNames=taxonResult.commonNames||[];
+    const common=commonNames.find(n=>/english/i.test(n.language))?.name||commonNames[0]?.name||sciName;
+    const species={id:0,name:sciName,common,status,taxon:iucnClassToTaxon(taxonResult.className),lat,lng,_userAdded:true};
+    USER_SPECIES.push(species);
+    saveUserSpecies();
+    renderFromState(computeFilterState());
+    renderMySpeciesPanel();
+    btnEl.textContent='✓ Added!';
+  }catch(e){btnEl.textContent='Error';btnEl.disabled=false;}
+}
+
+function removeUserSpecies(name){
+  const idx=USER_SPECIES.findIndex(s=>s.name===name);
+  if(idx===-1)return;
+  USER_SPECIES.splice(idx,1);
+  saveUserSpecies();
+  renderMySpeciesPanel();
+  renderFromState(computeFilterState());
+}
+
+function renderMySpeciesPanel(){
+  const section=document.getElementById('my-species-section');
+  const list=document.getElementById('my-species-list');
+  if(!section||!list)return;
+  if(!USER_SPECIES.length){section.style.display='none';return;}
+  section.style.display='block';
+  list.innerHTML=USER_SPECIES.map(s=>`
+    <div class="my-species-item">
+      <span class="ms-dot" style="background:${STATUS_COLORS[s.status]||'#aaa'}"></span>
+      <div class="ms-name">
+        <div class="ms-common">${s.common}</div>
+        <div class="ms-sci">${s.name}</div>
+      </div>
+      <button class="ms-remove" onclick="removeUserSpecies(${JSON.stringify(s.name)})" title="Remove from globe">✕</button>
+    </div>
+  `).join('');
+}
+
+// Init add-species search
+(()=>{
+  const input=document.getElementById('add-search-input');
+  const results=document.getElementById('add-search-results');
+  const statusEl=document.getElementById('add-search-status');
+  if(!input)return;
+  let debounce=null;
+  input.addEventListener('input',()=>{
+    clearTimeout(debounce);
+    const q=input.value.trim();
+    if(q.length<2){results.style.display='none';statusEl.textContent='';return;}
+    statusEl.textContent='Searching IUCN…';
+    results.style.display='none';
+    debounce=setTimeout(async()=>{
+      try{
+        const taxa=await searchIUCNByCommonName(q);
+        if(!taxa.length){statusEl.textContent='No results found.';return;}
+        statusEl.textContent='';
+        window._addResults=taxa.slice(0,12);
+        results.innerHTML=window._addResults.map((t,i)=>{
+          const names=t.commonNames||[];
+          const common=names.find(n=>/english/i.test(n.language))?.name||names[0]?.name||t.scientificName;
+          const cls=t.className||'';
+          return `<div class="add-result-item">
+            <div class="ar-info">
+              <div class="ar-common">${common}</div>
+              <div class="ar-sci">${t.scientificName}</div>
+              <div class="ar-class">${cls}</div>
+            </div>
+            <button class="add-btn" onclick="addSpeciesFromIUCN(window._addResults[${i}],this)">+ Add</button>
+          </div>`;
+        }).join('');
+        results.style.display='block';
+      }catch(e){statusEl.textContent='Search failed. Check API key.';}
+    },400);
+  });
+  input.addEventListener('blur',()=>setTimeout(()=>{results.style.display='none'},250));
+  input.addEventListener('focus',()=>{if(window._addResults&&input.value.trim().length>=2)results.style.display='block';});
+})();
+
+renderMySpeciesPanel();
 
 function openImgOverlay(src){
   if(!src)return;
