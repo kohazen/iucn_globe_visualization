@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IUCN Globe — About</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#eef4fb;--text-primary:#132033;--text-secondary:#546273;
+  --nav-bg:rgba(255,255,255,0.72);--card-bg:rgba(19,32,51,0.05);
+  --glass-border:rgba(19,32,51,0.12);--sidebar-border:rgba(19,32,51,0.12);
+}
+:root.dark{
+  --bg:#000;--text-primary:#eaeae4;--text-secondary:#a0a098;
+  --nav-bg:rgba(8,8,12,0.72);--card-bg:rgba(255,255,255,0.06);
+  --glass-border:rgba(255,255,255,0.12);--sidebar-border:rgba(255,255,255,0.1);
+}
+body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-ui,sans-serif;min-height:100vh}
+#top-nav{
+  position:fixed;top:0;left:0;right:0;height:48px;z-index:100;
+  background:var(--nav-bg);border-bottom:1px solid var(--sidebar-border);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  display:flex;align-items:center;padding:0 16px;gap:16px;
+}
+.nav-brand{font-weight:800;font-size:15px;color:var(--text-primary);white-space:nowrap;letter-spacing:-0.3px}
+.nav-links{display:flex;gap:4px;flex:1}
+.nav-link{
+  padding:6px 14px;border-radius:8px;text-decoration:none;
+  font-size:13px;font-weight:600;color:var(--text-secondary);transition:all 0.2s ease;
+}
+.nav-link:hover{background:var(--card-bg);color:var(--text-primary)}
+.nav-link.active{background:var(--card-bg);color:var(--text-primary)}
+#theme-toggle{
+  background:var(--card-bg);border:1px solid var(--sidebar-border);border-radius:8px;
+  color:var(--text-primary);cursor:pointer;transition:background 0.2s ease;
+  display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 12px;
+}
+#theme-toggle:hover{background:rgba(255,255,255,0.18)}
+
+.page{max-width:720px;margin:0 auto;padding:80px 24px 60px}
+
+.hero{text-align:center;margin-bottom:56px}
+.hero h1{font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:8px}
+.hero p{font-size:15px;color:var(--text-secondary);line-height:1.6}
+
+.card{
+  background:var(--card-bg);border:1px solid var(--glass-border);border-radius:14px;
+  padding:28px;margin-bottom:20px;
+}
+.card h2{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-secondary);margin-bottom:16px}
+
+.author-row{display:flex;align-items:center;gap:20px}
+.author-avatar{
+  width:64px;height:64px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#1565C0,#40C8F4);
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:800;color:#fff;letter-spacing:-1px;
+}
+.author-info h3{font-size:18px;font-weight:800;letter-spacing:-0.3px;margin-bottom:4px}
+.author-info p{font-size:13px;color:var(--text-secondary);line-height:1.6}
+.author-info a{color:inherit;text-decoration:none;border-bottom:1px solid var(--glass-border)}
+.author-info a:hover{color:var(--text-primary)}
+
+.project-desc{font-size:14px;color:var(--text-secondary);line-height:1.7}
+
+.tech-grid{display:flex;flex-wrap:wrap;gap:8px}
+.tech-tag{
+  font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;
+  background:var(--card-bg);border:1px solid var(--glass-border);color:var(--text-secondary);
+}
+
+.links-list{display:flex;flex-direction:column;gap:10px}
+.ext-link{
+  display:flex;align-items:center;gap:10px;text-decoration:none;
+  color:var(--text-primary);font-size:14px;font-weight:600;
+  padding:10px 14px;border-radius:10px;border:1px solid var(--glass-border);
+  background:var(--card-bg);transition:all 0.2s;
+}
+.ext-link:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.25)}
+.ext-link svg{flex-shrink:0;opacity:0.7}
+.ext-link span.sub{font-size:12px;font-weight:400;color:var(--text-secondary);margin-left:auto}
+</style>
+</head>
+<body>
+<nav id="top-nav">
+  <span class="nav-brand">🌍 IUCN Globe</span>
+  <div class="nav-links">
+    <a href="globe_species.html" class="nav-link">🗺️ Species Map</a>
+    <a href="globe_conservation.html" class="nav-link">🛡️ Conservation Score</a>
+    <a href="globe_forest.html" class="nav-link">🌳 Forest Cover</a>
+    <a href="globe_dashboard.html" class="nav-link">📊 Dashboard</a>
+    <a href="globe_species_list.html" class="nav-link">📋 Species List</a>
+    <a href="about.html" class="nav-link active">ℹ️ About</a>
+  </div>
+  <button id="theme-toggle" aria-label="Toggle day/night mode">
+    <span id="theme-icon">🌙</span><span id="theme-label">Night</span>
+  </button>
+</nav>
+
+<div class="page">
+
+  <div class="hero">
+    <h1>🌍 IUCN Globe Visualization</h1>
+    <p>An interactive 3D globe exploring animal conservation status,<br/>country performance, and global forest cover.</p>
+  </div>
+
+  <div class="card">
+    <h2>Author</h2>
+    <div class="author-row">
+      <div class="author-avatar">SP</div>
+      <div class="author-info">
+        <h3>Saurabh Pandey</h3>
+        <p>M.Tech Student, Department of Computer Science &amp; Engineering<br/>
+        <a href="https://home.iitd.ac.in" target="_blank" rel="noopener">Indian Institute of Technology Delhi</a><br/>
+        <a href="mailto:mcs252151@iitd.ac.in">mcs252151@iitd.ac.in</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>About the Project</h2>
+    <p class="project-desc">
+      This project visualises data from the <strong>IUCN Red List API v4</strong> across three interactive 3D globes.
+      The Species Map plots 200 threatened species (Critically Endangered, Endangered, and Vulnerable) with live data
+      fetched on demand. The Conservation Score globe ranks countries by their conservation effort. The Forest Cover
+      globe displays global tree-canopy data. A unified dashboard provides summary statistics across all three views.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Built With</h2>
+    <div class="tech-grid">
+      <span class="tech-tag">Globe.GL</span>
+      <span class="tech-tag">Three.js</span>
+      <span class="tech-tag">D3.js</span>
+      <span class="tech-tag">Chart.js</span>
+      <span class="tech-tag">IUCN Red List API v4</span>
+      <span class="tech-tag">Wikipedia REST API</span>
+      <span class="tech-tag">Cloudflare Workers</span>
+      <span class="tech-tag">GitHub Pages</span>
+      <span class="tech-tag">NASA Earth Textures</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Links</h2>
+    <div class="links-list">
+      <a href="https://github.com/kohazen/iucn_globe_visualization" target="_blank" rel="noopener" class="ext-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub Repository
+        <span class="sub">kohazen/iucn_globe_visualization</span>
+      </a>
+      <a href="https://api.iucnredlist.org" target="_blank" rel="noopener" class="ext-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        IUCN Red List API
+        <span class="sub">api.iucnredlist.org</span>
+      </a>
+      <a href="https://home.iitd.ac.in" target="_blank" rel="noopener" class="ext-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        IIT Delhi
+        <span class="sub">home.iitd.ac.in</span>
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const root = document.documentElement;
+if(localStorage.getItem('theme')==='dark') root.classList.add('dark');
+const themeBtn = document.getElementById('theme-toggle');
+function updateThemeBtn(){
+  const dark = root.classList.contains('dark');
+  document.getElementById('theme-icon').textContent = dark ? '🌙' : '☀️';
+  document.getElementById('theme-label').textContent = dark ? 'Night' : 'Day';
+}
+updateThemeBtn();
+themeBtn.addEventListener('click', () => {
+  root.classList.toggle('dark');
+  localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light');
+  updateThemeBtn();
+});
+</script>
+</body>
+</html>
