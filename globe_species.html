@@ -1513,6 +1513,9 @@ function showDetailPanel(){
 }
 
 // ── SPECIES SIDEBAR ───────────────────────────────────────────────
+const cleanText=t=>t.replace(/\[\[([^\]]*)\]\]/g,'$1').replace(/\[([^\]]*)\]/g,'$1').trim();
+const isNEBlocker=t=>/this not evaluated assessment is created to block/i.test(t);
+
 async function openSidebar(species){
   showDetailPanel();
   showSkeletonState(species);
@@ -1577,9 +1580,10 @@ async function openSidebar(species){
 
     const rec=assessRes.assessment||assessRes;
     const narr=rec.narratives||rec.documentation||rec;
+    const rawRationale=cleanText(getText(narr.rationale||narr.rational||narr.habitat||rec.rationale));
     const detail={result:[{
-      rationale:getText(narr.rationale||narr.rational||narr.habitat||rec.rationale),
-      population:getText(narr.population||rec.population),
+      rationale:isNEBlocker(rawRationale)?'':rawRationale,
+      population:cleanText(getText(narr.population||rec.population)),
     }]};
 
     console.log('[IUCN V4 habitat[0]]', JSON.stringify(rec.habitats?.[0]));
@@ -1694,7 +1698,8 @@ function populateSidebar(species,data){
   nt.classList.remove('skeleton-text');
   resetExpandable('narrative-text');
   resetExpandable('population-text');
-  nt.innerHTML=result?.rationale||result?.conservation_actions||'No narrative available.';
+  const narrativeRaw=result?.rationale||result?.conservation_actions||'';
+  nt.innerHTML=narrativeRaw&&!isNEBlocker(narrativeRaw)?narrativeRaw:'No narrative available.';
   document.getElementById('population-text').innerHTML=result?.population||'Population data not available.';
   checkOverflow('narrative-text');
   checkOverflow('population-text');
