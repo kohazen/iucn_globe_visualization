@@ -1845,19 +1845,35 @@ async function addSpeciesFromIUCN(taxonResult,btnEl){
     if(SPECIES_DATA.concat(USER_SPECIES).some(s=>s.name===sciName)){
       btnEl.textContent='✓ On globe';return;
     }
-    const{assessments,authError}=await fetchAssessmentsByScientificName(sciName);
-    if(authError){btnEl.textContent='🔑 Auth';btnEl.disabled=false;return;}
-    if(!assessments?.length){btnEl.textContent='Not found';btnEl.disabled=false;return;}
-    const latest=assessments[0];
-    const rawStatus=latest.red_list_category_code||latest.redListCategory?.code||latest.red_list_category?.code||latest.category||latest.status||'NC';
-    const status=['CR','EN','VU'].includes(rawStatus)?rawStatus:'NC';
-    let lat=0,lng=0;
-    const assessId=latest.assessmentId||latest.id;
-    if(assessId){const coords=await getSpeciesCoords(assessId);if(coords)[lat,lng]=coords;}
-    if(!lat&&!lng){const coords=await getINatObsCoords(taxonResult.scientificName);if(coords)[lat,lng]=coords;}
     const commonNames=taxonResult.commonNames||[];
     const common=commonNames.find(n=>/english/i.test(n.language))?.name||commonNames[0]?.name||sciName;
-    const species={id:0,name:sciName,common,status,iucnStatus:rawStatus,taxon:iucnClassToTaxon(taxonResult.className),lat,lng,_userAdded:true};
+    const taxon=iucnClassToTaxon(taxonResult.className);
+
+    // Try IUCN for status — fall back to NC if unavailable
+    let rawStatus='NC';
+    let assessId=null;
+    try{
+      const{assessments,authError}=await fetchAssessmentsByScientificName(sciName);
+      if(!authError&&assessments?.length){
+        const latest=assessments[0];
+        rawStatus=latest.red_list_category_code||latest.redListCategory?.code||latest.red_list_category?.code||latest.category||latest.status||'NC';
+        assessId=latest.assessmentId||latest.id;
+      }
+    }catch(e){}
+    const status=['CR','EN','VU'].includes(rawStatus)?rawStatus:'NC';
+
+    // Coords: IUCN countries → iNaturalist observation → 0,0
+    let lat=0,lng=0;
+    if(assessId){
+      const c=await getSpeciesCoords(assessId);
+      if(c){lat=c[0];lng=c[1];}
+    }
+    if(!lat&&!lng){
+      const c=await getINatObsCoords(sciName);
+      if(c){lat=c[0];lng=c[1];}
+    }
+
+    const species={id:0,name:sciName,common,status,iucnStatus:rawStatus,taxon,lat,lng,_userAdded:true};
     USER_SPECIES.push(species);
     saveUserSpecies();
     renderFromState(computeFilterState());
@@ -1947,6 +1963,18 @@ function renderMySpeciesPanel(){
 })();
 
 renderMySpeciesPanel();
+
+// Patch old user species that have no coords
+(async()=>{
+  let patched=false;
+  for(const s of USER_SPECIES){
+    if(!s.lat&&!s.lng){
+      const c=await getINatObsCoords(s.name);
+      if(c){s.lat=c[0];s.lng=c[1];patched=true;}
+    }
+  }
+  if(patched){saveUserSpecies();renderFromState(computeFilterState());}
+})();
 
 function openImgOverlay(src){
   if(!src)return;
