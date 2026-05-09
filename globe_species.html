@@ -1745,15 +1745,27 @@ async function addSpeciesFromIUCN(taxonResult,btnEl){
     const common=commonNames.find(n=>/english/i.test(n.language))?.name||commonNames[0]?.name||sciName;
     const taxon=iucnClassToTaxon(taxonResult.className);
 
-    // Try IUCN for status — fall back to NC if unavailable
+    // Try IUCN for status — subspecies first, then parent binomial, then NC
     let rawStatus='NC';
     let assessId=null;
+    const nameParts=sciName.trim().split(/\s+/);
+    const extractStatus=a=>a.red_list_category_code||a.redListCategory?.code||a.red_list_category?.code||a.category||a.status||'NC';
     try{
       const{assessments,authError}=await fetchAssessmentsByScientificName(sciName);
       if(!authError&&assessments?.length){
         const latest=assessments[0];
-        rawStatus=latest.red_list_category_code||latest.redListCategory?.code||latest.red_list_category?.code||latest.category||latest.status||'NC';
+        rawStatus=extractStatus(latest);
         assessId=latest.assessmentId||latest.id;
+      }
+      // If subspecies returned no useful status and name has 3+ parts, try parent species
+      if(!['CR','EN','VU'].includes(rawStatus)&&nameParts.length>=3){
+        const binomial=nameParts.slice(0,2).join(' ');
+        const{assessments:binAss,authError:binAuth}=await fetchAssessmentsByScientificName(binomial);
+        if(!binAuth&&binAss?.length){
+          const latest=binAss[0];
+          rawStatus=extractStatus(latest);
+          if(!assessId)assessId=latest.assessmentId||latest.id;
+        }
       }
     }catch(e){}
     const status=['CR','EN','VU'].includes(rawStatus)?rawStatus:'NC';
