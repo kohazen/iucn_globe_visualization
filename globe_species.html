@@ -7,9 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-<script src="https://unpkg.com/globe.gl"></script>
-<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://cdn.jsdelivr.net"/>
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2/dist/globe.gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1055,14 +1056,14 @@ const STATUS_LABELS={CR:'CR — Critically Endangered',EN:'EN — Endangered',VU
 // ── THEME ─────────────────────────────────────────────────────────
 const root=document.documentElement;
 
-// Defaults: day earth texture, night background
-let globeTextureMode=localStorage.getItem('globeTexture')||'day';
+// Always start with day texture — night is lazy-loaded only when toggled
+let globeTextureMode='day';
 const savedBg=localStorage.getItem('theme');
 if(savedBg==='light'){/* stay light */}else{root.classList.add('dark');}
 
 const GLOBE_TEXTURES={
-  day:'assets/textures/earth-day-nasa-color-5400x2700.jpg',
-  night:'assets/textures/earth-night-nasa-13500x6750.jpg',
+  day:'assets/textures/earth-day-4096.jpg',
+  night:'assets/textures/earth-night-4096.jpg',
 };
 const SKY_BACKGROUNDS={day:'',night:''};
 
@@ -1158,18 +1159,18 @@ const globe=Globe({rendererConfig:{alpha:true,antialias:true}})(globeContainer)
   .showAtmosphere(true)
   .atmosphereColor(root.classList.contains('dark')?'#3A8FDF':'#1565C0')
   .atmosphereAltitude(0.15)
-  .globeImageUrl(root.classList.contains('dark')?GLOBE_TEXTURES.night:GLOBE_TEXTURES.day);
+  .globeImageUrl(GLOBE_TEXTURES.day);
 
 window._globe=globe;
 
 globe.onGlobeReady(()=>{
   const loader=document.getElementById('globe-loader');
   if(loader){loader.classList.add('hidden');setTimeout(()=>loader.remove(),700);}
-  applyGlobeTheme();
+  applyBackground();
   // Always start with India centred
   globe.pointOfView({lat:20,lng:78,altitude:1.8},0);
   // Load country outlines for visual reference
-  fetch('https://unpkg.com/world-atlas@2/countries-110m.json')
+  fetch('assets/countries-110m.json')
     .then(r=>r.json())
     .then(world=>{
       const countries=topojson.feature(world,world.objects.countries);
