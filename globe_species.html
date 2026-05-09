@@ -1770,9 +1770,14 @@ async function addSpeciesFromIUCN(taxonResult,btnEl){
     }catch(e){}
     const status=['CR','EN','VU'].includes(rawStatus)?rawStatus:'NC';
 
-    // Coords: IUCN countries → iNaturalist observation → 0,0
+    // Coords: subspecies → iNat first (more specific than parent range)
+    //         species   → IUCN countries first, iNat as fallback
     let lat=0,lng=0;
-    if(assessId){
+    if(nameParts.length>=3){
+      const c=await getINatObsCoords(sciName);
+      if(c){lat=c[0];lng=c[1];}
+    }
+    if(!lat&&!lng&&assessId){
       const c=await getSpeciesCoords(assessId);
       if(c){lat=c[0];lng=c[1];}
     }
