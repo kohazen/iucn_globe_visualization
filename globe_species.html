@@ -1788,10 +1788,17 @@ function toggleAddPanel(){
 }
 
 async function searchIUCNByCommonName(query){
-  const res=await iucnFetch(`/api/iucn/taxa/common_name?name=${encodeURIComponent(query)}`);
+  // IUCN v4 has no common-name search endpoint — use GBIF suggest (free, no auth, CORS-enabled)
+  const res=await fetch(`https://api.gbif.org/v1/species/suggest?q=${encodeURIComponent(query)}&limit=15`);
   if(!res.ok)return[];
   const data=await res.json();
-  return data.taxa||data.result||[];
+  return data
+    .filter(d=>d.rank==='SPECIES'&&d.canonicalName)
+    .map(d=>({
+      scientificName:d.canonicalName,
+      commonNames:d.vernacularName?[{name:d.vernacularName,language:'English'}]:[],
+      className:(d.class||'').toUpperCase()
+    }));
 }
 
 async function getSpeciesCoords(assessmentId){
@@ -1888,12 +1895,12 @@ function renderMySpeciesPanel(){
         window._addResults=taxa.slice(0,12);
         results.innerHTML=window._addResults.map((t,i)=>{
           const names=t.commonNames||[];
-          const common=names.find(n=>/english/i.test(n.language))?.name||names[0]?.name||t.scientificName;
+          const common=names.find(n=>/english/i.test(n.language))?.name||names[0]?.name||'';
           const cls=t.className||'';
           return `<div class="add-result-item">
             <div class="ar-info">
-              <div class="ar-common">${common}</div>
-              <div class="ar-sci">${t.scientificName}</div>
+              <div class="ar-common">${common||t.scientificName}</div>
+              ${common?`<div class="ar-sci">${t.scientificName}</div>`:''}
               <div class="ar-class">${cls}</div>
             </div>
             <button class="add-btn" onclick="addSpeciesFromIUCN(window._addResults[${i}],this)">+ Add</button>
