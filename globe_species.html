@@ -1682,7 +1682,10 @@ async function searchIUCNByCommonName(query){
     .map(d=>{
       const cn=(d.preferred_common_name||'').toLowerCase();
       const sn=d.name.toLowerCase();
-      const score=cn===q?0:cn.startsWith(q)?1:sn.startsWith(q)?2:cn.includes(q)?3:4;
+      const lastWord=cn.split(' ').pop();
+      // score 0: exact; 1: query is last word of common name (e.g. "Bengal tiger" for "tiger");
+      // 2: common name starts with query; 3: sci name starts; 4: common name includes; 5: other
+      const score=cn===q?0:lastWord===q?1:cn.startsWith(q)?2:sn.startsWith(q)?3:cn.includes(q)?4:5;
       return{score,d};
     });
   ranked.sort((a,b)=>a.score-b.score||(b.d.observations_count||0)-(a.d.observations_count||0));
