@@ -1428,7 +1428,7 @@ loadFeaturedImage();
 
 function loadFeaturedSpecies(){
   const bt=SPECIES_DATA.find(s=>s.name==='Panthera tigris tigris');
-  if(bt)openSidebar(bt);
+  if(bt){openSidebar(bt);setHighlight(bt);}
 }
 
 // ── SIDEBAR PANELS ────────────────────────────────────────────────
