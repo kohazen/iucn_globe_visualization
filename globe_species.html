@@ -1348,20 +1348,21 @@ document.querySelectorAll('.taxon-btn').forEach(btn=>{
   input.addEventListener('input',()=>{
     const q=input.value.trim().toLowerCase();
     if(q.length<2){results.style.display='none';return;}
-    const matches=SPECIES_DATA.filter(s=>
+    const pool=SPECIES_DATA.concat(USER_SPECIES);
+    const matches=pool.filter(s=>
       s.common.toLowerCase().includes(q)||s.name.toLowerCase().includes(q)
     ).slice(0,10);
     if(!matches.length){results.style.display='none';return;}
     results.innerHTML=matches.map(s=>`
       <div class="search-item" data-name="${s.name}">
-        <span class="s-dot" style="background:${STATUS_COLORS[s.status]}"></span>
+        <span class="s-dot" style="background:${STATUS_COLORS[s.status]||'#888'}"></span>
         <div><span class="common">${s.common}</span><br/><span class="sci">${s.name}</span></div>
       </div>
     `).join('');
     results.style.display='block';
     results.querySelectorAll('.search-item').forEach(item=>{
       item.addEventListener('click',()=>{
-        const species=SPECIES_DATA.find(s=>s.name===item.dataset.name);
+        const species=pool.find(s=>s.name===item.dataset.name);
         if(species){
           input.value='';
           results.style.display='none';
