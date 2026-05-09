@@ -1788,16 +1788,16 @@ function toggleAddPanel(){
 }
 
 async function searchIUCNByCommonName(query){
-  // IUCN v4 has no common-name search endpoint — use GBIF suggest (free, no auth, CORS-enabled)
-  const res=await fetch(`https://api.gbif.org/v1/species/suggest?q=${encodeURIComponent(query)}&limit=15`);
+  // iNaturalist has proper common-name search — free, no auth, CORS-enabled
+  const res=await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(query)}&rank=species&per_page=12`);
   if(!res.ok)return[];
   const data=await res.json();
-  return data
-    .filter(d=>d.rank==='SPECIES'&&d.canonicalName)
+  return(data.results||[])
+    .filter(d=>d.name&&d.rank==='species')
     .map(d=>({
-      scientificName:d.canonicalName,
-      commonNames:d.vernacularName?[{name:d.vernacularName,language:'English'}]:[],
-      className:(d.class||'').toUpperCase()
+      scientificName:d.name,
+      commonNames:d.preferred_common_name?[{name:d.preferred_common_name,language:'English'}]:[],
+      className:(d.iconic_taxon_name||'').toUpperCase()
     }));
 }
 
@@ -1827,7 +1827,7 @@ async function addSpeciesFromIUCN(taxonResult,btnEl){
     if(authError){btnEl.textContent='🔑 Auth';btnEl.disabled=false;return;}
     if(!assessments?.length){btnEl.textContent='Not found';btnEl.disabled=false;return;}
     const latest=assessments[0];
-    const rawStatus=latest.redListCategory?.code||latest.category||latest.status||'NC';
+    const rawStatus=latest.red_list_category_code||latest.redListCategory?.code||latest.red_list_category?.code||latest.category||latest.status||'NC';
     const status=['CR','EN','VU'].includes(rawStatus)?rawStatus:'NC';
     let lat=0,lng=0;
     const assessId=latest.assessmentId||latest.id;
