@@ -314,6 +314,21 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 }
 .zoom-pill.visible{opacity:1;}
 .zoom-pill.fade{opacity:0;transition:opacity 1s ease;}
+#globe-loader{
+  position:fixed;top:48px;left:0;right:0;bottom:0;
+  background:var(--bg);z-index:200;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  transition:opacity 0.6s ease;
+}
+#globe-loader.hidden{opacity:0;pointer-events:none;}
+#globe-loader-spinner{
+  width:52px;height:52px;border-radius:50%;
+  border:4px solid rgba(255,255,255,0.1);
+  border-top-color:#4a9eff;
+  animation:globe-spin 0.9s linear infinite;
+}
+#globe-loader p{font-size:13px;color:var(--text-secondary);font-weight:500;letter-spacing:0.3px;}
+@keyframes globe-spin{to{transform:rotate(360deg)}}
 #click-hint-pill{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
   background:rgba(10,12,20,0.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
@@ -453,6 +468,10 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 
 <div id="app">
   <div id="globe-container">
+  </div>
+  <div id="globe-loader">
+    <div id="globe-loader-spinner"></div>
+    <p>Loading globe…</p>
   </div>
   <div id="click-hint-pill"><span class="hint-dot"></span> Click any animal dot on the globe to explore it</div>
 
@@ -1144,6 +1163,8 @@ const globe=Globe({rendererConfig:{alpha:true,antialias:true}})(globeContainer)
 window._globe=globe;
 
 globe.onGlobeReady(()=>{
+  const loader=document.getElementById('globe-loader');
+  if(loader){loader.classList.add('hidden');setTimeout(()=>loader.remove(),700);}
   applyGlobeTheme();
   // Always start with India centred
   globe.pointOfView({lat:20,lng:78,altitude:1.8},0);
