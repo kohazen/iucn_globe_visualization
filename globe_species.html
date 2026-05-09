@@ -1789,17 +1789,25 @@ function toggleAddPanel(){
 }
 
 async function searchIUCNByCommonName(query){
-  // iNaturalist has proper common-name search — free, no auth, CORS-enabled
-  const res=await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(query)}&rank=species&per_page=12`);
+  // taxon_id=1 = Animalia — filters out plants, fungi, etc.
+  const res=await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(query)}&rank=species&per_page=20&taxon_id=1`);
   if(!res.ok)return[];
   const data=await res.json();
-  return(data.results||[])
+  const q=query.toLowerCase();
+  const ranked=(data.results||[])
     .filter(d=>d.name&&d.rank==='species')
-    .map(d=>({
-      scientificName:d.name,
-      commonNames:d.preferred_common_name?[{name:d.preferred_common_name,language:'English'}]:[],
-      className:(d.iconic_taxon_name||'').toUpperCase()
-    }));
+    .map(d=>{
+      const cn=(d.preferred_common_name||'').toLowerCase();
+      const sn=d.name.toLowerCase();
+      const score=cn===q?0:cn.startsWith(q)?1:sn.startsWith(q)?2:cn.includes(q)?3:4;
+      return{score,d};
+    });
+  ranked.sort((a,b)=>a.score-b.score);
+  return ranked.slice(0,12).map(({d})=>({
+    scientificName:d.name,
+    commonNames:d.preferred_common_name?[{name:d.preferred_common_name,language:'English'}]:[],
+    className:(d.iconic_taxon_name||'').toUpperCase()
+  }));
 }
 
 async function getSpeciesCoords(assessmentId){
