@@ -641,8 +641,13 @@ async function fetchAssessmentsByScientificName(fullName){
 }
 
 async function iucnFetch(url){
-  const apiPath = url.replace('https://api.iucnredlist.org/api/v4', '');
-  const proxyUrl = `${PROXY_BASE}/api/iucn${apiPath}`;
+  let proxyUrl;
+  if(url.startsWith('https://api.iucnredlist.org/api/v4')){
+    const apiPath = url.replace('https://api.iucnredlist.org/api/v4', '');
+    proxyUrl = `${PROXY_BASE}/api/iucn${apiPath}`;
+  } else {
+    proxyUrl = `${PROXY_BASE}${url}`;
+  }
   const headers = {};
   if(IUCN_KEY) headers['X-IUCN-Key'] = IUCN_KEY;
   const res = await fetch(proxyUrl, {headers});
