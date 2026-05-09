@@ -1139,6 +1139,9 @@ globe
 
 // Ring layer: CR pulsing rings + highlight ring
 
+const USER_SPECIES=JSON.parse(localStorage.getItem('iucn_user_species')||'[]');
+function saveUserSpecies(){localStorage.setItem('iucn_user_species',JSON.stringify(USER_SPECIES));}
+
 function computeFilterState(){
   const pool=SPECIES_DATA.concat(USER_SPECIES);
   const visible=pool.filter(s=>activeFilters.has(s.status)&&activeTaxons.has(s.taxon));
@@ -1733,10 +1736,6 @@ function flashZoomPill(id){
 }
 
 // ── USER-ADDED SPECIES ────────────────────────────────────────────
-
-const USER_SPECIES=JSON.parse(localStorage.getItem('iucn_user_species')||'[]');
-
-function saveUserSpecies(){localStorage.setItem('iucn_user_species',JSON.stringify(USER_SPECIES));}
 
 const COUNTRY_CENTROIDS={
   'AD':[42.5,1.5],'AE':[24.0,54.0],'AF':[33.0,65.0],'AG':[17.1,-61.8],'AL':[41.0,20.0],
