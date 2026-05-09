@@ -376,7 +376,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 .add-btn:hover:not(:disabled){background:rgba(21,101,192,0.38)}
 .add-btn:disabled{opacity:0.55;cursor:default}
 /* My Species */
-#my-species-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--sidebar-border);display:none}
+#my-species-section{margin-top:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--sidebar-border);display:none}
 #my-species-section h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-secondary);margin-bottom:8px}
 .my-species-item{
   display:flex;align-items:center;gap:8px;padding:6px 8px;
@@ -500,9 +500,13 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
         <span class="status-badge status-en">EN — Endangered</span>
       </div>
       <p class="intro-description">
-        Explore 200 critically threatened species across the globe.
+        Explore <span id="intro-total-count">200</span> critically threatened species across the globe.
         Click any dot to see full conservation data.
       </p>
+      <div id="my-species-section">
+        <h4>My Species</h4>
+        <div id="my-species-list"></div>
+      </div>
       <div class="intro-stats">
         <div class="stat"><span class="stat-num cr" id="stat-cr">72</span><span class="stat-label">CR</span></div>
         <div class="stat"><span class="stat-num en" id="stat-en">64</span><span class="stat-label">EN</span></div>
@@ -530,10 +534,6 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
           <button id="api-key-save" onclick="saveApiKey()">Save</button>
         </div>
         <p id="api-key-hint">Uses your saved browser token.<br/>Get a free token at <a href="https://api.iucnredlist.org" target="_blank" style="color:#B5D4F4">api.iucnredlist.org</a> (V4)</p>
-      </div>
-      <div id="my-species-section">
-        <h4>My Species</h4>
-        <div id="my-species-list"></div>
       </div>
     </div>
 
@@ -1163,8 +1163,10 @@ function renderFromState(state){
   globe.ringsData(state.rings);
   const countEl=document.getElementById('count-num');
   const labelEl=document.getElementById('count-label');
+  const introTotalEl=document.getElementById('intro-total-count');
   if(countEl)countEl.textContent=state.visible.length;
   if(labelEl)labelEl.textContent=state.visible.length===state.total?'species visible':`of ${state.total} species visible`;
+  if(introTotalEl)introTotalEl.textContent=state.total;
   ['CR','EN','VU'].forEach(s=>{
     const l=document.getElementById('legend-'+s.toLowerCase());if(l)l.textContent=state.counts[s];
     const sc=document.getElementById('stat-'+s.toLowerCase());if(sc)sc.textContent=state.counts[s];
