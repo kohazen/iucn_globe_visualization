@@ -327,7 +327,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
   #filter-panel{top:auto;bottom:calc(50vh + 16px)}
 }
 /* Add Species from IUCN */
-#add-species-wrap{padding:0 16px 12px;border-bottom:1px solid var(--sidebar-border)}
+#add-species-wrap{padding:12px 16px;border-bottom:1px solid var(--sidebar-border)}
 #add-species-toggle{
   width:100%;display:flex;align-items:center;gap:6px;padding:7px 12px;
   background:var(--card-bg);border:1px solid var(--glass-border);
@@ -479,7 +479,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
       <div id="search-results"></div>
     </div>
     <div id="add-species-wrap">
-      <button id="add-species-toggle" onclick="toggleAddPanel()">＋ Add species from IUCN</button>
+      <button id="add-species-toggle" onclick="toggleAddPanel()">＋ Add new species from IUCN to the globe</button>
       <div id="add-species-panel">
         <div id="add-search-wrap">
           <span id="add-search-icon">🔍</span>
@@ -1786,7 +1786,7 @@ function toggleAddPanel(){
   const panel=document.getElementById('add-species-panel');
   const btn=document.getElementById('add-species-toggle');
   const open=panel.classList.toggle('open');
-  btn.textContent=open?'✕ Close':'＋ Add species from IUCN';
+  btn.textContent=open?'✕ Close':'＋ Add new species from IUCN to the globe';
   if(open)setTimeout(()=>document.getElementById('add-search-input').focus(),50);
 }
 
