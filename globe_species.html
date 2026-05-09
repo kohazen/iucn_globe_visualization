@@ -68,29 +68,24 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 #sidebar::-webkit-scrollbar-track{background:transparent}
 #sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
 #sidebar::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2)}
-.resize-handle{position:absolute;top:0;width:12px;height:100%;cursor:col-resize;z-index:20;background:transparent;}
-#sidebar-resize{right:auto;left:0;}
-#filter-panel-resize{right:0;top:0;}
+.resize-handle{position:absolute;left:0;top:0;width:12px;height:100%;cursor:col-resize;z-index:20;background:transparent;}
 .resize-handle::after{
-  content:'';position:absolute;top:0;width:2px;height:100%;
+  content:'';position:absolute;left:5px;top:0;width:2px;height:100%;
   background:transparent;transition:background 0.15s;
 }
-#sidebar-resize::after{left:5px;}
-#filter-panel-resize::after{right:5px;}
 .resize-handle:hover::after,.resize-handle.dragging::after{background:rgba(21,101,192,0.7);}
 .resize-grip{
   position:absolute;top:50%;transform:translateY(-50%);
-  width:22px;height:44px;border-radius:11px;
+  width:36px;height:44px;border-radius:11px;
   background:rgba(30,35,50,0.92);border:1.5px solid rgba(255,255,255,0.22);
   display:flex;align-items:center;justify-content:center;
-  font-size:12px;color:#fff;
+  font-size:9px;color:#fff;
   pointer-events:none;
   opacity:0.85;transition:opacity 0.15s,border-color 0.15s,background 0.15s;
   box-shadow:0 2px 12px rgba(0,0,0,0.45);
-  backdrop-filter:blur(8px);letter-spacing:-1px;
+  backdrop-filter:blur(8px);letter-spacing:0px;gap:0;
 }
-#sidebar-resize .resize-grip{left:-11px;}
-#filter-panel-resize .resize-grip{right:-11px;}
+#sidebar-resize .resize-grip{left:-18px;}
 .resize-handle:hover .resize-grip,.resize-handle.dragging .resize-grip{
   opacity:1;border-color:rgba(21,101,192,0.7);background:rgba(21,101,192,0.25);
 }
@@ -100,7 +95,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
   border-radius:14px;padding:12px 14px;
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   box-shadow:var(--overlay-shadow);
-  display:flex;flex-direction:column;gap:10px;min-width:140px;max-width:260px;
+  display:flex;flex-direction:column;gap:10px;min-width:140px;
 }
 .filter-group-label{
   font-size:9px;font-weight:700;letter-spacing:0.08em;
@@ -438,7 +433,6 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 
   <!-- Fixed overlays (must be outside #globe-container because globe.gl clears it) -->
   <div id="filter-panel">
-    <div id="filter-panel-resize" class="resize-handle"><div class="resize-grip">⇔</div></div>
     <div>
       <div class="filter-group-label">Status</div>
       <div id="filter-bar">
@@ -494,7 +488,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
   </div>
 
   <div id="sidebar">
-    <div id="sidebar-resize" class="resize-handle"><div class="resize-grip">⇔</div></div>
+    <div id="sidebar-resize" class="resize-handle"><div class="resize-grip">⇔⇔⇔</div></div>
     <div id="search-wrap">
       <span id="search-icon">🔍</span>
       <input id="search-input" type="text" placeholder="Search species…" autocomplete="off" spellcheck="false"/>
@@ -1325,38 +1319,6 @@ globeContainer.addEventListener('mouseleave',()=>{if(!_rotLocked&&!_hlPausedRota
   });
 })();
 
-// Filter panel resize
-(()=>{
-  const panel=document.getElementById('filter-panel');
-  const handle=document.getElementById('filter-panel-resize');
-  const STORAGE_KEY='iucn_filter_width';
-  const saved=localStorage.getItem(STORAGE_KEY);
-  if(saved)panel.style.width=saved+'px';
-
-  handle.addEventListener('mousedown',e=>{
-    const startX=e.clientX;
-    const startW=panel.offsetWidth;
-    handle.classList.add('dragging');
-    document.body.style.cursor='col-resize';
-    document.body.style.userSelect='none';
-    const min=parseInt(getComputedStyle(panel).minWidth);
-    const max=parseInt(getComputedStyle(panel).maxWidth);
-    const onMove=e=>{
-      const w=Math.min(max,Math.max(min,startW+(e.clientX-startX)));
-      panel.style.width=w+'px';
-    };
-    const onUp=()=>{
-      handle.classList.remove('dragging');
-      document.body.style.cursor='';
-      document.body.style.userSelect='';
-      localStorage.setItem(STORAGE_KEY,panel.offsetWidth);
-      document.removeEventListener('mousemove',onMove);
-      document.removeEventListener('mouseup',onUp);
-    };
-    document.addEventListener('mousemove',onMove);
-    document.addEventListener('mouseup',onUp);
-  });
-})();
 
 window.addEventListener('resize',()=>{
   globe.width(globeContainer.offsetWidth).height(window.innerHeight-48);
