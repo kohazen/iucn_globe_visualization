@@ -1597,12 +1597,12 @@ async function openSidebar(species){
       title: t.description?.en || t.title || t.name || threatName(t.code)
     }))};
 
-    // Subspecies fallback: if habitats+threats are empty and name has ≥3 parts,
-    // retry with just the binomial (e.g. "Panthera pardus" for "Panthera pardus orientalis")
+    // Subspecies fallback: if habitats+threats empty OR rationale blocked/missing, retry with binomial
     const nameParts=species.name.trim().split(/\s+/);
-    if(!habitats.result.length&&!threats.result.length&&nameParts.length>=3){
+    const needsFallback=(!habitats.result.length&&!threats.result.length)||!detail.result[0].rationale;
+    if(needsFallback&&nameParts.length>=3){
       const binomial=nameParts.slice(0,2).join(' ');
-      console.info('[IUCN] Subspecies had no habitat/threat data — retrying as species:', binomial);
+      console.info('[IUCN] Subspecies fallback — retrying as species:', binomial);
       try{
         const binomialLookup=await fetchAssessmentsByScientificName(binomial);
         const binomialAssessments=binomialLookup.assessments||[];
@@ -1612,6 +1612,15 @@ async function openSidebar(species){
         if(binLatest){
           const binAssessRes=await iucnFetch(`/api/iucn/assessment/${binLatest.assessment_id||binLatest.id}`).then(r=>r.json());
           const binRec=binAssessRes.assessment||binAssessRes;
+          const binNarr=binRec.narratives||binRec.documentation||binRec;
+          if(!detail.result[0].rationale){
+            const binRationale=cleanText(getText(binNarr.rationale||binNarr.rational||binRec.rationale));
+            if(binRationale&&!isNEBlocker(binRationale))detail.result[0].rationale=binRationale;
+          }
+          if(!detail.result[0].population){
+            const binPop=cleanText(getText(binNarr.population||binRec.population));
+            if(binPop)detail.result[0].population=binPop;
+          }
           if((binRec.habitats||[]).length){
             habitats={result:binRec.habitats.map(h=>({habitat:h.description?.en||h.name||habitatName(h.code)}))};
           }
