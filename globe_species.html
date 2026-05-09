@@ -312,6 +312,19 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 }
 .zoom-pill.visible{opacity:1;}
 .zoom-pill.fade{opacity:0;transition:opacity 1s ease;}
+#click-hint-pill{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:rgba(10,12,20,0.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.14);
+  color:#d0d8e8;font-size:12px;font-weight:500;letter-spacing:0.2px;
+  padding:8px 18px;border-radius:24px;white-space:nowrap;pointer-events:none;
+  display:flex;align-items:center;gap:7px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.35);
+  opacity:1;transition:opacity 0.8s ease;z-index:60;
+}
+#click-hint-pill.hidden{opacity:0;}
+#click-hint-pill .hint-dot{width:7px;height:7px;border-radius:50%;background:#FF5252;box-shadow:0 0 6px #FF5252;animation:pulse-hint 1.4s ease-in-out infinite;}
+@keyframes pulse-hint{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:0.6}}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 #species-header h2{font-size:17px;font-weight:700;margin-bottom:4px}
 .detail-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--sidebar-border)}
@@ -439,6 +452,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 <div id="app">
   <div id="globe-container">
   </div>
+  <div id="click-hint-pill"><span class="hint-dot"></span> Click any animal dot on the globe to explore it</div>
 
   <!-- Fixed overlays (must be outside #globe-container because globe.gl clears it) -->
   <div id="filter-panel">
@@ -1544,6 +1558,8 @@ const cleanText=t=>t.replace(/\[\[([^\]]*)\]\]/g,'$1').replace(/\[([^\]]*)\]/g,'
 const isNEBlocker=t=>/this not evaluated assessment is created to block/i.test(t);
 
 async function openSidebar(species){
+  const hintPill=document.getElementById('click-hint-pill');
+  if(hintPill)hintPill.classList.add('hidden');
   showDetailPanel();
   showSkeletonState(species);
   // Set search-based fallback link immediately so it always works
