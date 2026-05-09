@@ -364,7 +364,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
       </div>
     </div>
     <div class="filter-divider"></div>
-    <button id="reset-filters" onclick="resetAllFilters()">+ Show All</button>
+    <button id="reset-filters" onclick="resetAllFilters()">× Clear Filters</button>
     <div id="species-count"><span id="count-num">200</span> <span id="count-label">species visible</span></div>
   </div>
   <button id="rotation-btn" onclick="toggleRotation()" title="Pause globe rotation">⏸ Rotation</button>
@@ -970,8 +970,8 @@ SKY_BACKGROUNDS.night=makeSkyTexture('night');
 applyGlobeTheme();
 
 // ── GLOBE INIT ────────────────────────────────────────────────────
-let activeFilters=new Set();
-let activeTaxons=new Set();
+let activeFilters=new Set(['CR','EN','VU']);
+let activeTaxons=new Set(['MAMMALIA','AVES','REPTILIA','AMPHIBIA','CHONDRICHTHYES']);
 
 
 const globeContainer=document.getElementById('globe-container');
