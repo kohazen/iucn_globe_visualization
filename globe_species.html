@@ -330,9 +330,14 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
     <a href="globe_species_list.html" class="nav-link" data-view="list">📋 Species List</a>
     <a href="about.html" class="nav-link">ℹ️ About</a>
   </div>
-  <button id="theme-toggle" aria-label="Toggle day/night mode" style="display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 12px;">
-    <span id="theme-icon">🌙</span><span id="theme-label">Night</span>
-  </button>
+  <div style="display:flex;gap:6px">
+    <button id="globe-toggle" aria-label="Toggle globe texture" style="display:flex;align-items:center;gap:5px;font-size:12px;padding:4px 10px;background:var(--card-bg);border:1px solid var(--sidebar-border);border-radius:8px;color:var(--text-primary);cursor:pointer;transition:background 0.2s;">
+      <span id="globe-icon">🌍</span><span id="globe-label">Day Map</span>
+    </button>
+    <button id="bg-toggle" aria-label="Toggle background theme" style="display:flex;align-items:center;gap:5px;font-size:12px;padding:4px 10px;background:var(--card-bg);border:1px solid var(--sidebar-border);border-radius:8px;color:var(--text-primary);cursor:pointer;transition:background 0.2s;">
+      <span id="bg-icon">🌙</span><span id="bg-label">Night BG</span>
+    </button>
+  </div>
 </nav>
 
 <div id="app">
@@ -900,28 +905,33 @@ const STATUS_LABELS={CR:'CR — Critically Endangered',EN:'EN — Endangered',VU
 
 // ── THEME ─────────────────────────────────────────────────────────
 const root=document.documentElement;
-if(localStorage.getItem('theme')==='dark')root.classList.add('dark');
-const themeBtn=document.getElementById('theme-toggle');
+
+// Defaults: day earth texture, night background
+let globeTextureMode=localStorage.getItem('globeTexture')||'day';
+const savedBg=localStorage.getItem('theme');
+if(savedBg==='light'){/* stay light */}else{root.classList.add('dark');}
+
 const GLOBE_TEXTURES={
   day:'assets/textures/earth-day-nasa-color-5400x2700.jpg',
   night:'assets/textures/earth-night-nasa-13500x6750.jpg',
 };
 const SKY_BACKGROUNDS={day:'',night:''};
 
-function updateThemeBtn(){
+function updateGlobeBtn(){
+  document.getElementById('globe-icon').textContent=globeTextureMode==='day'?'🌍':'🌑';
+  document.getElementById('globe-label').textContent=globeTextureMode==='day'?'Day Map':'Night Map';
+}
+
+function updateBgBtn(){
   const dark=root.classList.contains('dark');
-  const icon=document.getElementById('theme-icon');
-  const label=document.getElementById('theme-label');
-  if(icon) icon.textContent=dark?'🌙':'☀️';
-  if(label) label.textContent=dark?'Night':'Day';
-  themeBtn.setAttribute('aria-label',dark?'Switch to day mode':'Switch to night mode');
+  document.getElementById('bg-icon').textContent=dark?'🌙':'☀️';
+  document.getElementById('bg-label').textContent=dark?'Night BG':'Day BG';
 }
 
 function makeSkyTexture(mode){
   const c=document.createElement('canvas');
   c.width=1920;c.height=1080;
   const ctx=c.getContext('2d');
-
   if(mode==='day'){
     const gradient=ctx.createRadialGradient(c.width*0.5,c.height*0.35,40,c.width*0.5,c.height*0.35,c.width*0.7);
     gradient.addColorStop(0,'#d8ebff');
@@ -941,36 +951,46 @@ function makeSkyTexture(mode){
     for(let i=0;i<40;i++){
       const x=Math.random()*c.width,y=Math.random()*c.height;
       ctx.beginPath();ctx.arc(x,y,1.2,0,Math.PI*2);
-      ctx.fillStyle=i%2===0?'rgba(180,210,255,0.8)':'rgba(255,230,200,0.7)';
-      ctx.fill();
+      ctx.fillStyle=i%2===0?'rgba(180,210,255,0.8)':'rgba(255,230,200,0.7)';ctx.fill();
     }
   }
-
   return c.toDataURL();
 }
 
-function applyGlobeTheme(){
+function applyBackground(){
   const dark=root.classList.contains('dark');
   document.body.style.backgroundImage=`url(${dark?SKY_BACKGROUNDS.night:SKY_BACKGROUNDS.day})`;
   document.body.style.backgroundSize='cover';
-
   if(!window._globe)return;
   window._globe.atmosphereColor(dark?'#3A8FDF':'#1565C0');
   window._globe.backgroundColor('rgba(0,0,0,0)');
-  window._globe
-    .globeImageUrl(dark?GLOBE_TEXTURES.night:GLOBE_TEXTURES.day)
-    .polygonCapColor(()=>'rgba(0,0,0,0)')
-    .polygonStrokeColor(()=>dark?'rgba(255,255,255,0.18)':'rgba(27,42,64,0.22)');
+  window._globe.polygonCapColor(()=>'rgba(0,0,0,0)');
+  window._globe.polygonStrokeColor(()=>dark?'rgba(255,255,255,0.18)':'rgba(27,42,64,0.22)');
 }
 
-themeBtn.addEventListener('click',()=>{
-  root.classList.toggle('dark');
-  localStorage.setItem('theme',root.classList.contains('dark')?'dark':'light');
-  applyGlobeTheme();
-  updateThemeBtn();
+function applyGlobeTexture(){
+  if(!window._globe)return;
+  window._globe.globeImageUrl(GLOBE_TEXTURES[globeTextureMode]);
+}
+
+function applyGlobeTheme(){applyBackground();applyGlobeTexture();}
+
+document.getElementById('globe-toggle').addEventListener('click',()=>{
+  globeTextureMode=globeTextureMode==='day'?'night':'day';
+  localStorage.setItem('globeTexture',globeTextureMode);
+  applyGlobeTexture();
+  updateGlobeBtn();
 });
 
-updateThemeBtn();
+document.getElementById('bg-toggle').addEventListener('click',()=>{
+  root.classList.toggle('dark');
+  localStorage.setItem('theme',root.classList.contains('dark')?'dark':'light');
+  applyBackground();
+  updateBgBtn();
+});
+
+updateGlobeBtn();
+updateBgBtn();
 SKY_BACKGROUNDS.day=makeSkyTexture('day');
 SKY_BACKGROUNDS.night=makeSkyTexture('night');
 applyGlobeTheme();
