@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="assets/species-data.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -83,13 +84,13 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 <div class="page-wrap">
   <div class="page-header">
     <h1>Conservation Analytics</h1>
-    <p class="subtitle">Cross-cutting insights from 200 threatened species, NCI scores, and forest cover data</p>
+    <p class="subtitle" id="dash-subtitle"></p>
   </div>
   <div class="stats-row">
-    <div class="stat-card total"><span class="num">200</span><span class="label">Total Species</span></div>
-    <div class="stat-card cr"><span class="num">55</span><span class="label">Critically Endangered</span></div>
-    <div class="stat-card en"><span class="num">79</span><span class="label">Endangered</span></div>
-    <div class="stat-card vu"><span class="num">66</span><span class="label">Vulnerable</span></div>
+    <div class="stat-card total"><span class="num" id="stat-total">—</span><span class="label">Total Species</span></div>
+    <div class="stat-card cr"><span class="num" id="stat-cr">—</span><span class="label">Critically Endangered</span></div>
+    <div class="stat-card en"><span class="num" id="stat-en">—</span><span class="label">Endangered</span></div>
+    <div class="stat-card vu"><span class="num" id="stat-vu">—</span><span class="label">Vulnerable</span></div>
   </div>
   <div class="charts-grid">
     <div class="chart-card">
@@ -112,23 +113,48 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 </div>
 
 <script>
+// ── Compute stats from live data ──────────────────────────────────
+const USER_SPECIES=JSON.parse(localStorage.getItem('iucn_user_species')||'[]');
+const ALL_SPECIES=SPECIES_DATA.concat(USER_SPECIES);
+
+const crC=ALL_SPECIES.filter(s=>s.status==='CR').length;
+const enC=ALL_SPECIES.filter(s=>s.status==='EN').length;
+const vuC=ALL_SPECIES.filter(s=>s.status==='VU').length;
+const ncC=ALL_SPECIES.filter(s=>s.status==='NC').length;
+const total=ALL_SPECIES.length;
+
+document.getElementById('stat-total').textContent=total;
+document.getElementById('stat-cr').textContent=crC;
+document.getElementById('stat-en').textContent=enC;
+document.getElementById('stat-vu').textContent=vuC;
+document.getElementById('dash-subtitle').textContent=
+  `Cross-cutting insights from ${total} species (${crC} CR · ${enC} EN · ${vuC} VU${ncC?` · ${ncC} NC`:''}), NCI scores, and forest cover data`;
+
+const TAXON_LABELS={MAMMALIA:'Mammals',AVES:'Birds',REPTILIA:'Reptiles',AMPHIBIA:'Amphibians',CHONDRICHTHYES:'Marine Fish'};
+const TAXON_KEYS=Object.keys(TAXON_LABELS);
+const taxonCounts=TAXON_KEYS.map(k=>ALL_SPECIES.filter(s=>s.taxon===k).length);
+
 const NCI_SCORES={"LUX":91.2,"FIN":89.4,"NOR":88.7,"CHE":87.9,"CRI":86.1,"NZL":85.3,"SWE":84.6,"DNK":83.8,"AUT":82.4,"DEU":81.7,"GBR":81.2,"NLD":80.8,"BEL":80.1,"ISL":79.8,"IRL":79.4,"FRA":78.9,"ESP":78.3,"PRT":77.8,"ITA":77.2,"CAN":76.9,"AUS":76.4,"JPN":75.8,"KOR":75.3,"SGP":74.9,"USA":73.2,"CZE":72.8,"SVK":72.3,"HUN":71.9,"POL":71.4,"SVN":71.0,"HRV":70.6,"EST":70.2,"LVA":69.8,"LTU":69.4,"ROU":68.9,"BGR":68.5,"GRC":68.1,"CYP":67.7,"MLT":67.3,"URY":66.9,"CHL":66.4,"ARG":65.9,"BRA":65.4,"MEX":64.9,"COL":64.3,"PER":63.8,"ZAF":63.5,"ECU":63.2,"NAM":62.8,"BWA":62.2,"BOL":62.7,"PRY":62.2,"VEN":61.6,"PAN":61.1,"IND":45.5,"CHN":52.1,"RUS":67.4,"IDN":55.8,"NGA":51.2,"PAK":48.2};
 const ISO_NAMES={"LUX":"Luxembourg","FIN":"Finland","NOR":"Norway","CHE":"Switzerland","CRI":"Costa Rica","NZL":"New Zealand","SWE":"Sweden","DNK":"Denmark","AUT":"Austria","DEU":"Germany","GBR":"United Kingdom","NLD":"Netherlands","BEL":"Belgium","ISL":"Iceland","IRL":"Ireland"};
 function getNciColor(s){if(s>=80)return'#1D9E75';if(s>=60)return'#97C459';if(s>=40)return'#FAC775';if(s>=20)return'#E24B4A';return'#A32D2D'}
 Chart.defaults.color='#a0a098';
 Chart.defaults.font.family='Inter';
 
-// Status donut
+// Status donut — includes NC if any user species added
+const statusLabels=['CR — Critically Endangered','EN — Endangered','VU — Vulnerable'];
+const statusData=[crC,enC,vuC];
+const statusColors=['#FF5252','#FFB347','#40C8F4'];
+if(ncC>0){statusLabels.push('NC — Not Threatened');statusData.push(ncC);statusColors.push('#4CAF50');}
 new Chart(document.getElementById('chart-status'),{type:'doughnut',data:{
-  labels:['CR — Critically Endangered','EN — Endangered','VU — Vulnerable'],
-  datasets:[{data:[55,79,66],backgroundColor:['#FF5252','#FFB347','#40C8F4'],borderWidth:0,hoverBorderWidth:2,hoverBorderColor:'#fff'}]
+  labels:statusLabels,
+  datasets:[{data:statusData,backgroundColor:statusColors,borderWidth:0,hoverBorderWidth:2,hoverBorderColor:'#fff'}]
 },options:{maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{padding:8,usePointStyle:true,pointStyle:'circle',font:{size:9}}},tooltip:{backgroundColor:'rgba(0,0,0,0.85)',cornerRadius:8}},animation:{animateRotate:true,duration:1400}}});
 
-// Taxon bar
+// Taxon bar — computed from data
 new Chart(document.getElementById('chart-taxon'),{type:'bar',data:{
-  labels:['Mammals','Birds','Reptiles','Amphibians','Marine Fish'],
-  datasets:[{data:[70,55,30,20,25],backgroundColor:['#FF6B6B','#FFA94D','#51CF66','#74C0FC','#9775FA'],borderRadius:5,borderSkipped:false}]
-},options:{maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{display:false,grid:{display:false}},y:{grid:{display:false},ticks:{font:{size:10,weight:'600'}}}},animation:{duration:1000}}});
+  labels:TAXON_KEYS.map(k=>TAXON_LABELS[k]),
+  datasets:[{data:taxonCounts,backgroundColor:['#FF6B6B','#FFA94D','#51CF66','#74C0FC','#9775FA'],borderRadius:5,borderSkipped:false}]
+},options:{maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} species`},backgroundColor:'rgba(0,0,0,0.85)',cornerRadius:8}},scales:{x:{display:false,grid:{display:false}},y:{grid:{display:false},ticks:{font:{size:10,weight:'600'}}}},animation:{duration:1000}}});
 
 // NCI top 15
 const sorted=Object.entries(NCI_SCORES).sort((a,b)=>b[1]-a[1]).slice(0,15);
