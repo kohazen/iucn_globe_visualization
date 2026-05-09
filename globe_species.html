@@ -1880,7 +1880,7 @@ async function addSpeciesFromIUCN(taxonResult,btnEl){
     renderMySpeciesPanel();
     btnEl.textContent='✓ Added!';
     setHighlight(species);
-    globe.pointOfView({lat:jitteredLat(species),lng:jitteredLng(species),altitude:1.8},800);
+    openSidebar(species);
   }catch(e){btnEl.textContent='Error';btnEl.disabled=false;}
 }
 
@@ -1941,17 +1941,22 @@ function renderMySpeciesPanel(){
         if(!taxa.length){statusEl.textContent='No results found.';return;}
         statusEl.textContent='';
         window._addResults=taxa.slice(0,12);
+        const allSpecies=SPECIES_DATA.concat(USER_SPECIES);
         results.innerHTML=window._addResults.map((t,i)=>{
           const names=t.commonNames||[];
           const common=names.find(n=>/english/i.test(n.language))?.name||names[0]?.name||'';
           const cls=t.className||'';
+          const onGlobe=allSpecies.some(s=>s.name===t.scientificName);
           return `<div class="add-result-item">
             <div class="ar-info">
               <div class="ar-common">${common||t.scientificName}</div>
               ${common?`<div class="ar-sci">${t.scientificName}</div>`:''}
               <div class="ar-class">${cls}</div>
             </div>
-            <button class="add-btn" onclick="addSpeciesFromIUCN(window._addResults[${i}],this)">+ Add</button>
+            ${onGlobe
+              ? `<button class="add-btn" style="opacity:0.6;cursor:default" disabled>✓ On globe</button>`
+              : `<button class="add-btn" onclick="addSpeciesFromIUCN(window._addResults[${i}],this)">+ Add</button>`
+            }
           </div>`;
         }).join('');
         results.style.display='block';
