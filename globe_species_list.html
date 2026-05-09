@@ -134,7 +134,7 @@ mark{background:rgba(255,200,50,0.25);color:inherit;border-radius:2px}
       <span class="dot" style="background:#40C8F4"></span> VU
     </button>
     <button class="filter-btn active" data-status="NC" onclick="toggleStatus(this)">
-      <span class="dot" style="background:#888888"></span> Other
+      <span class="dot" style="background:#4CAF50"></span> Other
     </button>
     <span class="filter-sep"></span>
     <button class="filter-btn active" data-taxon="MAMMALIA" onclick="toggleTaxon(this)">🐾 Mammals</button>
@@ -362,7 +362,7 @@ const BASE_SPECIES=[
 const USER_SPECIES=JSON.parse(localStorage.getItem('iucn_user_species')||'[]');
 const SPECIES_DATA=BASE_SPECIES.concat(USER_SPECIES);
 
-const STATUS_COLORS={CR:'#FF5252',EN:'#FFB347',VU:'#40C8F4',NC:'#888888'};
+const STATUS_COLORS={CR:'#FF5252',EN:'#FFB347',VU:'#40C8F4',NC:'#4CAF50'};
 const TAXON_NAMES={MAMMALIA:'Mammalia',AVES:'Aves',REPTILIA:'Reptilia',AMPHIBIA:'Amphibia',CHONDRICHTHYES:'Chondrichthyes'};
 const priority=['CR','EN','VU','NC'];
 let activeStatuses=new Set(['CR','EN','VU','NC']);
@@ -413,7 +413,7 @@ function renderTable(){
     <td style="color:var(--text-secondary)">${i+1}</td>
     <td><strong>${highlight(s.common,searchQuery)}</strong>${s._userAdded?'<span class="user-badge">My Species</span>':''}</td>
     <td style="font-style:italic;color:var(--text-secondary)">${highlight(s.name,searchQuery)}</td>
-    <td><span class="status-dot" style="background:${STATUS_COLORS[s.status]||'#888'}"></span>${s.status}</td>
+    <td><span class="status-dot" style="background:${STATUS_COLORS[s.status]||'#4CAF50'}"></span>${s.status}</td>
     <td><span class="taxon-tag">${TAXON_NAMES[s.taxon]||s.taxon}</span></td>
     <td>${s.lat.toFixed(1)}°, ${s.lng.toFixed(1)}°</td>
     <td><span class="view-hint">View on globe →</span></td>
