@@ -1804,7 +1804,7 @@ async function searchIUCNByCommonName(query){
       const score=cn===q?0:cn.startsWith(q)?1:sn.startsWith(q)?2:cn.includes(q)?3:4;
       return{score,d};
     });
-  ranked.sort((a,b)=>a.score-b.score);
+  ranked.sort((a,b)=>a.score-b.score||(b.d.observations_count||0)-(a.d.observations_count||0));
   return ranked.slice(0,12).map(({d})=>({
     scientificName:d.name,
     commonNames:d.preferred_common_name?[{name:d.preferred_common_name,language:'English'}]:[],
