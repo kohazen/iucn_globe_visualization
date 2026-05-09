@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IUCN Globe — Analytics Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08080c;--text-primary:#eaeae4;--text-secondary:#a0a098;
+  --card-bg:rgba(255,255,255,0.04);--glass-border:rgba(255,255,255,0.1);
+  --nav-bg:rgba(8,8,12,0.72);
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-ui,sans-serif}
+#top-nav{
+  position:fixed;top:0;left:0;right:0;height:48px;z-index:100;
+  background:var(--nav-bg);border-bottom:1px solid var(--glass-border);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  display:flex;align-items:center;padding:0 16px;gap:16px;
+}
+.nav-brand{font-weight:800;font-size:15px;color:var(--text-primary);white-space:nowrap;letter-spacing:-0.3px}
+.nav-links{display:flex;gap:4px;flex:1}
+.nav-link{
+  padding:6px 14px;border-radius:8px;text-decoration:none;
+  font-size:13px;font-weight:600;color:var(--text-secondary);transition:all 0.2s;
+}
+.nav-link:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.nav-link.active{background:rgba(255,255,255,0.1);color:var(--text-primary)}
+
+.page-wrap{
+  position:fixed;top:48px;left:0;right:0;bottom:0;
+  display:flex;flex-direction:column;padding:16px 24px 16px;overflow:hidden;
+}
+.page-header{flex-shrink:0;margin-bottom:8px}
+.page-header h1{font-size:20px;font-weight:800;letter-spacing:-0.5px}
+.page-header .subtitle{font-size:11px;color:var(--text-secondary);margin-top:1px}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex-shrink:0;margin-bottom:10px}
+.stat-card{
+  background:var(--card-bg);border:1px solid var(--glass-border);border-radius:10px;
+  padding:10px;text-align:center;transition:all 0.25s;backdrop-filter:blur(8px);
+}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.3)}
+.stat-card .num{font-size:24px;font-weight:800;letter-spacing:-1px;display:block}
+.stat-card .label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.7px;color:var(--text-secondary);margin-top:1px}
+.stat-card.cr .num{color:#FF5252}
+.stat-card.en .num{color:#FFB347}
+.stat-card.vu .num{color:#40C8F4}
+.stat-card.total .num{color:#a78bfa}
+
+.charts-grid{
+  display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+  gap:10px;flex:1;min-height:0;overflow:hidden;
+}
+.chart-card{
+  background:var(--card-bg);border:1px solid var(--glass-border);border-radius:10px;
+  padding:12px;backdrop-filter:blur(8px);display:flex;flex-direction:column;
+  overflow:hidden;min-height:0;
+}
+.chart-card h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-secondary);margin-bottom:6px;flex-shrink:0}
+.chart-card .chart-wrap{flex:1;min-height:0;position:relative}
+.chart-card canvas{width:100%!important;height:100%!important}
+</style>
+</head>
+<body>
+<nav id="top-nav">
+  <span class="nav-brand">🌍 IUCN Globe</span>
+  <div class="nav-links">
+    <a href="globe_species.html" class="nav-link">🗺️ Species Map</a>
+    <a href="globe_conservation.html" class="nav-link">🛡️ Conservation Score</a>
+    <a href="globe_forest.html" class="nav-link">🌳 Forest Cover</a>
+    <a href="globe_dashboard.html" class="nav-link active">📊 Dashboard</a>
+    <a href="globe_species_list.html" class="nav-link">📋 Species List</a>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>Conservation Analytics</h1>
+    <p class="subtitle">Cross-cutting insights from 200 threatened species, NCI scores, and forest cover data</p>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card total"><span class="num">200</span><span class="label">Total Species</span></div>
+    <div class="stat-card cr"><span class="num">55</span><span class="label">Critically Endangered</span></div>
+    <div class="stat-card en"><span class="num">79</span><span class="label">Endangered</span></div>
+    <div class="stat-card vu"><span class="num">66</span><span class="label">Vulnerable</span></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>Status Distribution</h3>
+      <div class="chart-wrap"><canvas id="chart-status"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Species by Taxonomic Class</h3>
+      <div class="chart-wrap"><canvas id="chart-taxon"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Top 15 Countries by NCI Score</h3>
+      <div class="chart-wrap"><canvas id="chart-nci"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>NCI Score Distribution</h3>
+      <div class="chart-wrap"><canvas id="chart-nci-dist"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const NCI_SCORES={"LUX":91.2,"FIN":89.4,"NOR":88.7,"CHE":87.9,"CRI":86.1,"NZL":85.3,"SWE":84.6,"DNK":83.8,"AUT":82.4,"DEU":81.7,"GBR":81.2,"NLD":80.8,"BEL":80.1,"ISL":79.8,"IRL":79.4,"FRA":78.9,"ESP":78.3,"PRT":77.8,"ITA":77.2,"CAN":76.9,"AUS":76.4,"JPN":75.8,"KOR":75.3,"SGP":74.9,"USA":73.2,"CZE":72.8,"SVK":72.3,"HUN":71.9,"POL":71.4,"SVN":71.0,"HRV":70.6,"EST":70.2,"LVA":69.8,"LTU":69.4,"ROU":68.9,"BGR":68.5,"GRC":68.1,"CYP":67.7,"MLT":67.3,"URY":66.9,"CHL":66.4,"ARG":65.9,"BRA":65.4,"MEX":64.9,"COL":64.3,"PER":63.8,"ZAF":63.5,"ECU":63.2,"NAM":62.8,"BWA":62.2,"BOL":62.7,"PRY":62.2,"VEN":61.6,"PAN":61.1,"IND":45.5,"CHN":52.1,"RUS":67.4,"IDN":55.8,"NGA":51.2,"PAK":48.2};
+const ISO_NAMES={"LUX":"Luxembourg","FIN":"Finland","NOR":"Norway","CHE":"Switzerland","CRI":"Costa Rica","NZL":"New Zealand","SWE":"Sweden","DNK":"Denmark","AUT":"Austria","DEU":"Germany","GBR":"United Kingdom","NLD":"Netherlands","BEL":"Belgium","ISL":"Iceland","IRL":"Ireland"};
+function getNciColor(s){if(s>=80)return'#1D9E75';if(s>=60)return'#97C459';if(s>=40)return'#FAC775';if(s>=20)return'#E24B4A';return'#A32D2D'}
+Chart.defaults.color='#a0a098';
+Chart.defaults.font.family='Inter';
+
+// Status donut
+new Chart(document.getElementById('chart-status'),{type:'doughnut',data:{
+  labels:['CR — Critically Endangered','EN — Endangered','VU — Vulnerable'],
+  datasets:[{data:[55,79,66],backgroundColor:['#FF5252','#FFB347','#40C8F4'],borderWidth:0,hoverBorderWidth:2,hoverBorderColor:'#fff'}]
+},options:{maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{padding:8,usePointStyle:true,pointStyle:'circle',font:{size:9}}},tooltip:{backgroundColor:'rgba(0,0,0,0.85)',cornerRadius:8}},animation:{animateRotate:true,duration:1400}}});
+
+// Taxon bar
+new Chart(document.getElementById('chart-taxon'),{type:'bar',data:{
+  labels:['Mammals','Birds','Reptiles','Amphibians','Marine Fish'],
+  datasets:[{data:[70,55,30,20,25],backgroundColor:['#FF6B6B','#FFA94D','#51CF66','#74C0FC','#9775FA'],borderRadius:5,borderSkipped:false}]
+},options:{maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{display:false,grid:{display:false}},y:{grid:{display:false},ticks:{font:{size:10,weight:'600'}}}},animation:{duration:1000}}});
+
+// NCI top 15
+const sorted=Object.entries(NCI_SCORES).sort((a,b)=>b[1]-a[1]).slice(0,15);
+new Chart(document.getElementById('chart-nci'),{type:'bar',data:{
+  labels:sorted.map(([k])=>ISO_NAMES[k]||k),
+  datasets:[{data:sorted.map(([,v])=>v),backgroundColor:sorted.map(([,v])=>getNciColor(v)),borderRadius:4,borderSkipped:false}]
+},options:{maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`NCI: ${ctx.raw.toFixed(1)}/100`},backgroundColor:'rgba(0,0,0,0.85)',cornerRadius:8}},scales:{x:{min:0,max:100,grid:{color:'rgba(255,255,255,0.05)'},ticks:{font:{size:8}}},y:{grid:{display:false},ticks:{font:{size:9,weight:'600'}}}},animation:{duration:1200}}});
+
+// NCI histogram
+const bins=[0,0,0,0,0];
+Object.values(NCI_SCORES).forEach(s=>{if(s>=80)bins[4]++;else if(s>=60)bins[3]++;else if(s>=40)bins[2]++;else if(s>=20)bins[1]++;else bins[0]++});
+new Chart(document.getElementById('chart-nci-dist'),{type:'bar',data:{
+  labels:['0–20\nCritical','20–40\nPoor','40–60\nModerate','60–80\nGood','80–100\nExcellent'],
+  datasets:[{data:bins,backgroundColor:['#A32D2D','#E24B4A','#FAC775','#97C459','#1D9E75'],borderRadius:5,borderSkipped:false}]
+},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:8}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{font:{size:8}}}},animation:{duration:1000}}});
+</script>
+</body>
+</html>

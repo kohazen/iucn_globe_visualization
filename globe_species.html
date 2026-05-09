@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IUCN Globe — Species Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/globe.gl"></script>
+<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#eef4fb;--text-primary:#132033;--text-secondary:#546273;
+  --sidebar-bg:rgba(247,250,255,0.84);--sidebar-border:rgba(19,32,51,0.12);
+  --land-color:#C8B89A;--ocean-color:#B5D4F4;
+  --nav-bg:rgba(255,255,255,0.72);--card-bg:rgba(19,32,51,0.05);
+  --glass:rgba(255,255,255,0.35);--glass-border:rgba(19,32,51,0.12);
+  --overlay-bg:rgba(247,250,255,0.7);--overlay-bg-hover:rgba(255,255,255,0.9);
+  --overlay-active-border:rgba(19,32,51,0.2);--overlay-shadow:0 8px 24px rgba(27,42,64,0.12);
+  --search-placeholder:rgba(84,98,115,0.7);--input-focus-border:rgba(21,101,192,0.28);
+  --accent:#FF5252;--accent-glow:rgba(255,82,82,0.35);
+  --cr:#FF5252;--en:#FFB347;--vu:#40C8F4;
+}
+:root.dark{
+  --bg:#000;--text-primary:#eaeae4;--text-secondary:#a0a098;
+  --sidebar-bg:rgba(14,14,18,0.82);--sidebar-border:rgba(255,255,255,0.1);
+  --land-color:#3A3328;--ocean-color:#071E3D;
+  --nav-bg:rgba(8,8,12,0.72);--card-bg:rgba(255,255,255,0.06);
+  --glass:rgba(255,255,255,0.04);--glass-border:rgba(255,255,255,0.12);
+  --overlay-bg:rgba(14,14,18,0.72);--overlay-bg-hover:rgba(30,30,38,0.85);
+  --overlay-active-border:rgba(255,255,255,0.2);--overlay-shadow:0 8px 24px rgba(0,0,0,0.3);
+  --search-placeholder:rgba(160,160,152,0.6);--input-focus-border:rgba(255,255,255,0.3);
+}
+body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+#top-nav{
+  position:fixed;top:0;left:0;right:0;height:48px;z-index:100;
+  background:var(--nav-bg);border-bottom:1px solid var(--sidebar-border);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  display:flex;align-items:center;padding:0 16px;gap:16px;
+}
+.nav-brand{font-weight:800;font-size:15px;color:var(--text-primary);white-space:nowrap;letter-spacing:-0.3px}
+.nav-links{display:flex;gap:4px;flex:1}
+.nav-link{
+  padding:6px 14px;border-radius:8px;text-decoration:none;
+  font-size:13px;font-weight:600;color:var(--text-secondary);
+  transition:all 0.2s ease;position:relative;
+}
+.nav-link:hover{background:var(--card-bg);color:var(--text-primary)}
+.nav-link.active{background:var(--card-bg);color:var(--text-primary);box-shadow:0 0 12px rgba(255,255,255,0.05)}
+#theme-toggle{
+  background:var(--card-bg);border:1px solid var(--sidebar-border);border-radius:8px;
+  color:var(--text-primary);padding:4px 10px;cursor:pointer;font-size:18px;line-height:1;
+  transition:background 0.2s ease,transform 0.2s ease,border-color 0.2s ease;
+}
+#theme-toggle:hover{background:rgba(255,255,255,0.18);transform:translateY(-1px)}
+#app{display:flex;margin-top:48px;height:calc(100vh - 48px)}
+#globe-container{flex:1;position:relative;overflow:hidden;margin-left:248px}
+#sidebar{
+  width:340px;min-width:220px;max-width:600px;flex-shrink:0;height:100%;overflow-y:auto;
+  background:var(--sidebar-bg);border-left:1px solid var(--sidebar-border);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  position:relative;
+}
+#sidebar::-webkit-scrollbar{width:6px}
+#sidebar::-webkit-scrollbar-track{background:transparent}
+#sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+#sidebar::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2)}
+#sidebar-resize{
+  position:absolute;left:0;top:0;width:5px;height:100%;cursor:col-resize;z-index:20;
+  background:transparent;transition:background 0.15s;
+}
+#sidebar-resize:hover,#sidebar-resize.dragging{background:var(--accent);opacity:0.5;}
+#filter-panel{
+  position:fixed;top:165px;left:16px;z-index:50;
+  background:var(--overlay-bg);border:1px solid var(--glass-border);
+  border-radius:14px;padding:12px 14px;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:var(--overlay-shadow);
+  display:flex;flex-direction:column;gap:10px;min-width:140px;
+}
+.filter-group-label{
+  font-size:9px;font-weight:700;letter-spacing:0.08em;
+  color:var(--text-secondary);text-transform:uppercase;margin-bottom:2px;
+}
+#filter-bar{
+  display:flex;flex-direction:column;gap:6px;
+}
+.filter-btn{
+  display:flex;align-items:center;gap:6px;padding:7px 14px;
+  border-radius:20px;border:1px solid var(--glass-border);
+  background:var(--overlay-bg);color:var(--text-secondary);
+  font-size:12px;font-weight:600;cursor:pointer;
+  transition:all 0.25s ease;opacity:0.5;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.filter-btn:hover{background:var(--overlay-bg-hover);transform:translateY(-1px)}
+.filter-btn.active{opacity:1;color:var(--text-primary);border-color:var(--overlay-active-border);box-shadow:var(--overlay-shadow)}
+.filter-btn .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:box-shadow 0.3s}
+.filter-btn.active .dot{box-shadow:0 0 6px 2px currentColor}
+#reset-filters{
+  width:100%;padding:7px 10px;border-radius:10px;
+  border:1px solid rgba(64,200,130,0.35);
+  background:rgba(64,200,130,0.1);color:#40C882;
+  font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:all 0.2s ease;opacity:0.4;pointer-events:none;
+  letter-spacing:0.03em;
+}
+#reset-filters:hover{background:rgba(64,200,130,0.22);border-color:#40C882}
+#reset-filters.visible{opacity:1;pointer-events:auto}
+.filter-divider{height:1px;background:var(--glass-border);margin:2px 0}
+#legend{
+  position:fixed;top:60px;left:16px;z-index:50;
+  background:var(--overlay-bg);border:1px solid var(--glass-border);
+  border-radius:12px;padding:10px 14px;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:var(--overlay-shadow);
+  font-size:11px;
+}
+.legend-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-secondary);margin-bottom:6px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);margin-bottom:3px;transition:opacity 0.2s}
+.legend-item:last-child{margin-bottom:0}
+.legend-item .count{font-weight:700;color:var(--text-primary);margin-left:auto;font-size:10px}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 4px rgba(255,255,255,0.15)}
+
+/* Sidebar panels */
+#intro-panel,#detail-panel{padding:20px}
+#featured-image-wrap{width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;margin-bottom:16px;background:var(--card-bg)}
+#featured-image{width:100%;height:100%;object-fit:cover;display:block}
+#featured-header h2{font-size:18px;font-weight:700;margin-bottom:4px}
+.scientific-name{font-style:italic;font-size:13px;color:var(--text-secondary);margin-bottom:8px}
+.status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:12px}
+.status-cr{background:#fde8e8;color:#c0392b}
+.status-en{background:#fef3e2;color:#d35400}
+.status-vu{background:#e8f0fe;color:#1a56db}
+.intro-description{font-size:13px;color:var(--text-secondary);line-height:1.5;margin-bottom:16px}
+.intro-stats{display:flex;gap:12px;margin-bottom:16px}
+.stat{
+  flex:1;text-align:center;padding:12px 10px;border-radius:10px;
+  background:var(--card-bg);border:1px solid var(--glass-border);
+  transition:all 0.2s;
+}
+.stat:hover{background:var(--overlay-bg);transform:translateY(-2px)}
+.stat-num{display:block;font-size:24px;font-weight:800;letter-spacing:-0.5px}
+.stat-num.cr{color:var(--cr)}
+.stat-num.en{color:var(--en)}
+.stat-num.vu{color:var(--vu)}
+.stat-label{font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-top:2px}
+#featured-cta{
+  width:100%;padding:10px;background:#FF5252;color:#fff;
+  border:none;border-radius:8px;font-size:14px;font-weight:600;
+  cursor:pointer;transition:opacity 0.15s;
+}
+#featured-cta:hover{opacity:0.85}
+#api-key-section{
+  margin-top:16px;padding-top:16px;
+  border-top:1px solid var(--sidebar-border);
+}
+#api-key-section label{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.5px;color:var(--text-secondary);margin-bottom:8px;
+}
+#api-key-status{
+  width:7px;height:7px;border-radius:50%;flex-shrink:0;
+  background:#666;transition:background 0.2s;
+}
+#api-key-status.set{background:#1D9E75}
+.key-row{display:flex;gap:6px}
+#api-key-input{
+  flex:1;padding:7px 10px;border-radius:6px;font-size:12px;
+  background:var(--card-bg);border:1px solid var(--sidebar-border);
+  color:var(--text-primary);outline:none;font-family:monospace;
+}
+#api-key-input:focus{border-color:var(--input-focus-border)}
+#api-key-save{
+  padding:7px 12px;border-radius:6px;border:none;
+  background:#FF5252;color:#fff;font-size:12px;font-weight:600;
+  cursor:pointer;white-space:nowrap;transition:opacity 0.15s;
+}
+#api-key-save:hover{opacity:0.85}
+#api-key-hint{font-size:11px;color:var(--text-secondary);margin-top:6px;line-height:1.4}
+#taxon-filter-bar{
+  display:flex;flex-direction:column;gap:6px;
+}
+.taxon-btn{
+  display:flex;align-items:center;gap:5px;padding:5px 10px;
+  border-radius:16px;border:1px solid var(--glass-border);
+  background:var(--overlay-bg);color:var(--text-secondary);
+  font-size:10px;font-weight:600;cursor:pointer;
+  transition:all 0.25s ease;opacity:0.5;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);width:fit-content;
+}
+.taxon-btn:hover{background:var(--overlay-bg-hover);transform:translateY(-1px)}
+.taxon-btn.active{opacity:1;color:var(--text-primary);border-color:var(--overlay-active-border);box-shadow:var(--overlay-shadow)}
+.taxon-btn .emoji{font-size:13px}
+#search-wrap{
+  padding:12px 16px;border-bottom:1px solid var(--sidebar-border);
+  position:relative;
+}
+#search-input{
+  width:100%;padding:9px 12px 9px 34px;border-radius:10px;
+  background:var(--card-bg);border:1px solid var(--glass-border);
+  color:var(--text-primary);font-size:13px;outline:none;
+  font-family:inherit;transition:all 0.2s;
+}
+#search-input:focus{border-color:var(--input-focus-border);background:var(--overlay-bg-hover);box-shadow:0 0 16px rgba(21,101,192,0.08)}
+#search-input::placeholder{color:var(--search-placeholder)}
+#search-icon{
+  position:absolute;left:24px;top:50%;transform:translateY(-50%);
+  font-size:14px;color:var(--text-secondary);pointer-events:none;
+}
+#search-results{
+  position:absolute;top:100%;left:16px;right:16px;z-index:30;
+  background:var(--overlay-bg-hover);border:1px solid var(--glass-border);
+  border-radius:0 0 10px 10px;max-height:240px;overflow-y:auto;
+  display:none;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:var(--overlay-shadow);
+}
+.search-item{
+  padding:8px 12px;cursor:pointer;font-size:12px;
+  border-bottom:1px solid var(--sidebar-border);
+  display:flex;align-items:center;gap:8px;
+  transition:background 0.1s;
+}
+.search-item:hover{background:var(--card-bg)}
+.search-item:last-child{border-bottom:none}
+.search-item .s-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.search-item .common{font-weight:600;color:var(--text-primary)}
+.search-item .sci{font-style:italic;color:var(--text-secondary);font-size:11px}
+#species-count{
+  font-size:10px;font-weight:600;color:var(--text-secondary);
+  text-align:center;padding:2px 0;
+  transition:all 0.3s ease;
+}
+#species-count span{color:var(--text-primary);font-weight:700}
+#rotation-btn{
+  position:fixed;bottom:28px;left:16px;z-index:50;
+  background:var(--overlay-bg);border:1px solid var(--glass-border);
+  border-radius:20px;padding:7px 16px;
+  font-size:12px;font-weight:600;color:var(--text-secondary);
+  cursor:pointer;font-family:inherit;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:var(--overlay-shadow);transition:all 0.2s;
+  display:flex;align-items:center;gap:7px;
+}
+#rotation-btn:hover{background:var(--overlay-bg-hover);color:var(--text-primary)}
+#rotation-btn.locked{color:var(--text-primary);border-color:rgba(255,255,255,0.25)}
+#highlight-badge{
+  position:fixed;bottom:70px;left:16px;z-index:50;
+  background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);
+  border-radius:20px;padding:6px 14px;
+  font-size:11px;font-weight:600;color:#fff;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:0 0 16px rgba(255,255,255,0.15);
+  display:none;align-items:center;gap:8px;
+}
+#highlight-badge .hl-dot{width:7px;height:7px;border-radius:50%;background:#fff;
+  box-shadow:0 0 6px 2px #fff;flex-shrink:0}
+#highlight-clear{background:none;border:none;color:rgba(255,255,255,0.6);
+  cursor:pointer;font-size:14px;padding:0;line-height:1;margin-left:4px}
+#highlight-clear:hover{color:#fff}
+#back-btn{
+  background:none;border:none;color:var(--text-secondary);
+  font-size:13px;cursor:pointer;padding:0 0 16px;
+  display:flex;align-items:center;gap:4px;font-family:inherit;
+  transition:color 0.2s;
+}
+#back-btn:hover{color:var(--text-primary)}
+#species-image-wrap{width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;margin-bottom:16px;background:var(--card-bg);position:relative}
+#species-image{width:100%;height:100%;object-fit:cover;display:none;cursor:zoom-in}
+#img-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;cursor:zoom-out;animation:fadeIn 0.15s ease}
+#img-overlay.open{display:flex}
+#img-overlay img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6)}
+#img-overlay-close{position:fixed;top:18px;right:24px;font-size:28px;color:#fff;cursor:pointer;line-height:1;opacity:0.8}
+#img-overlay-close:hover{opacity:1}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.skeleton-img{position:absolute;inset:0;background:linear-gradient(90deg,var(--card-bg) 25%,var(--sidebar-border) 50%,var(--card-bg) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+#species-header h2{font-size:17px;font-weight:700;margin-bottom:4px}
+.detail-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--sidebar-border)}
+.detail-section h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-secondary);margin-bottom:8px}
+.detail-section p,.detail-section ul,.detail-section div.expandable{font-size:13px;line-height:1.6;color:var(--text-primary)}
+.expandable{overflow:hidden;transition:max-height 0.3s ease}
+.expandable.collapsed{max-height:10lh;-webkit-mask-image:linear-gradient(to bottom,black 60%,transparent 100%);mask-image:linear-gradient(to bottom,black 60%,transparent 100%)}
+.expandable.expanded{max-height:none;-webkit-mask-image:none;mask-image:none}
+.see-more-btn{background:none;border:none;padding:4px 0 0;font-size:12px;color:var(--accent);cursor:pointer;display:none;font-family:inherit}
+.see-more-btn.visible{display:block}
+.detail-section ul{padding-left:16px}
+.detail-section li{margin-bottom:4px}
+.skeleton-text{
+  background:linear-gradient(90deg,var(--card-bg) 25%,var(--sidebar-border) 50%,var(--card-bg) 75%);
+  background-size:200% 100%;animation:shimmer 1.2s infinite;
+  border-radius:4px;min-height:60px;color:transparent!important;
+}
+.iucn-link{
+  display:block;margin-top:20px;padding:10px;text-align:center;
+  background:var(--card-bg);border-radius:8px;
+  color:var(--text-secondary);font-size:13px;text-decoration:none;
+  border:1px solid var(--sidebar-border);transition:all 0.2s;
+}
+.iucn-link:hover{color:var(--text-primary);background:rgba(255,255,255,0.08)}
+.error-msg{padding:16px;background:#fde8e8;border-radius:8px;color:#c0392b;font-size:13px;margin-top:12px}
+/* Chart containers */
+#intro-charts{margin-bottom:16px}
+#intro-charts canvas{width:100%!important;max-height:180px}
+.chart-wrap{background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:10px;padding:12px;margin-bottom:12px}
+.chart-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-secondary);margin-bottom:8px}
+/* Globe ring animation for selected species */
+@keyframes pulse-ring{0%{transform:scale(1);opacity:0.6}100%{transform:scale(3);opacity:0}}
+@media(max-width:600px){
+  #app{flex-direction:column}
+  #sidebar{width:100%;height:50vh;border-left:none;border-top:1px solid var(--sidebar-border)}
+  #globe-container{height:50vh}
+  #legend{right:16px;bottom:calc(50vh + 60px)}
+  #filter-panel{top:auto;bottom:calc(50vh + 16px)}
+}
+</style>
+</head>
+<body>
+<nav id="top-nav">
+  <span class="nav-brand">🌍 IUCN Globe</span>
+  <div class="nav-links">
+    <a href="globe_species.html" class="nav-link active" data-view="species">🗺️ Species Map</a>
+    <a href="globe_conservation.html" class="nav-link" data-view="conservation">🛡️ Conservation Score</a>
+    <a href="globe_forest.html" class="nav-link" data-view="forest">🌳 Forest Cover</a>
+    <a href="globe_dashboard.html" class="nav-link" data-view="dashboard">📊 Dashboard</a>
+    <a href="globe_species_list.html" class="nav-link" data-view="list">📋 Species List</a>
+  </div>
+  <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+</nav>
+
+<div id="app">
+  <div id="globe-container">
+  </div>
+
+  <!-- Fixed overlays (must be outside #globe-container because globe.gl clears it) -->
+  <div id="filter-panel">
+    <div>
+      <div class="filter-group-label">Status</div>
+      <div id="filter-bar">
+        <button class="filter-btn" data-status="CR">
+          <span class="dot" style="background:#FF5252"></span> Critically Endangered
+        </button>
+        <button class="filter-btn" data-status="EN">
+          <span class="dot" style="background:#FFB347"></span> Endangered
+        </button>
+        <button class="filter-btn" data-status="VU">
+          <span class="dot" style="background:#40C8F4"></span> Vulnerable
+        </button>
+      </div>
+    </div>
+    <div class="filter-divider"></div>
+    <div>
+      <div class="filter-group-label">Taxon</div>
+      <div id="taxon-filter-bar">
+        <button class="taxon-btn" data-taxon="MAMMALIA"><span class="emoji">🐾</span> Mammals</button>
+        <button class="taxon-btn" data-taxon="AVES"><span class="emoji">🐦</span> Birds</button>
+        <button class="taxon-btn" data-taxon="REPTILIA"><span class="emoji">🦎</span> Reptiles</button>
+        <button class="taxon-btn" data-taxon="AMPHIBIA"><span class="emoji">🐸</span> Amphibians</button>
+        <button class="taxon-btn" data-taxon="CHONDRICHTHYES"><span class="emoji">🦈</span> Marine</button>
+      </div>
+    </div>
+    <div class="filter-divider"></div>
+    <button id="reset-filters" onclick="resetAllFilters()">+ Show All</button>
+    <div id="species-count"><span id="count-num">200</span> <span id="count-label">species visible</span></div>
+  </div>
+  <button id="rotation-btn" onclick="toggleRotation()" title="Pause globe rotation">⏸ Rotation</button>
+  <div id="highlight-badge">
+    <span class="hl-dot"></span>
+    <span id="highlight-name">—</span>
+    <button id="highlight-clear" onclick="clearHighlight()" title="Clear highlight">✕</button>
+  </div>
+  <div id="legend">
+    <div class="legend-title">IUCN Red List Status</div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:#FF5252"></span>
+      <span>CR — Critically Endangered</span>
+      <span class="count" id="legend-cr">72</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:#FFB347"></span>
+      <span>EN — Endangered</span>
+      <span class="count" id="legend-en">64</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:#40C8F4"></span>
+      <span>VU — Vulnerable</span>
+      <span class="count" id="legend-vu">45</span>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div id="sidebar-resize"></div>
+    <div id="search-wrap">
+      <span id="search-icon">🔍</span>
+      <input id="search-input" type="text" placeholder="Search species…" autocomplete="off" spellcheck="false"/>
+      <div id="search-results"></div>
+    </div>
+    <div id="intro-panel">
+      <div id="featured-image-wrap">
+        <img id="featured-image" src="" alt="Bengal Tiger"/>
+      </div>
+      <div id="featured-header">
+        <h2>Bengal Tiger</h2>
+        <p class="scientific-name">Panthera tigris tigris</p>
+        <span class="status-badge status-en">EN — Endangered</span>
+      </div>
+      <p class="intro-description">
+        Explore 200 critically threatened species across the globe.
+        Click any dot to see full conservation data.
+      </p>
+      <div class="intro-stats">
+        <div class="stat"><span class="stat-num cr" id="stat-cr">72</span><span class="stat-label">CR</span></div>
+        <div class="stat"><span class="stat-num en" id="stat-en">64</span><span class="stat-label">EN</span></div>
+        <div class="stat"><span class="stat-num vu" id="stat-vu">45</span><span class="stat-label">VU</span></div>
+      </div>
+      <div id="intro-charts">
+        <div class="chart-wrap">
+          <div class="chart-title">Status Distribution</div>
+          <canvas id="status-chart"></canvas>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-title">Species by Taxon</div>
+          <canvas id="taxon-chart"></canvas>
+        </div>
+      </div>
+      <button id="featured-cta" onclick="loadFeaturedSpecies()">View Bengal Tiger profile →</button>
+
+      <div id="api-key-section">
+        <label>
+          <span id="api-key-status"></span>
+          IUCN API Key
+        </label>
+        <div class="key-row">
+          <input id="api-key-input" type="password" placeholder="Paste your token here…" autocomplete="off" spellcheck="false"/>
+          <button id="api-key-save" onclick="saveApiKey()">Save</button>
+        </div>
+        <p id="api-key-hint">Uses your saved browser token or the server's `.env` key.<br/>Get a free token at <a href="https://api.iucnredlist.org" target="_blank" style="color:#B5D4F4">api.iucnredlist.org</a> (V4)</p>
+      </div>
+    </div>
+
+    <div id="detail-panel" style="display:none">
+      <button id="back-btn" onclick="showIntroPanel()">← Back</button>
+      <div id="species-image-wrap">
+        <img id="species-image" src="" alt="" onclick="openImgOverlay(this.src)"/>
+        <div id="species-image-skeleton" class="skeleton-img"></div>
+      </div>
+      <div id="species-header">
+        <h2 id="species-common-name"></h2>
+        <p id="species-scientific-name" class="scientific-name"></p>
+        <span id="species-status-badge" class="status-badge"></span>
+      </div>
+      <section class="detail-section">
+        <h3>Conservation status</h3>
+        <div id="narrative-text" class="expandable collapsed"></div>
+        <button class="see-more-btn" onclick="toggleExpand('narrative-text',this)">See more ▾</button>
+      </section>
+      <section class="detail-section">
+        <h3>Population</h3>
+        <div id="population-text" class="expandable collapsed"></div>
+        <button class="see-more-btn" onclick="toggleExpand('population-text',this)">See more ▾</button>
+      </section>
+      <section class="detail-section">
+        <h3>Habitats</h3>
+        <ul id="habitats-list"></ul>
+      </section>
+      <section class="detail-section">
+        <h3>Top threats</h3>
+        <ul id="threats-list"></ul>
+      </section>
+      <section class="detail-section">
+        <h3>Range centroid</h3>
+        <p id="countries-text"></p>
+      </section>
+      <a id="iucn-link" href="#" target="_blank" class="iucn-link">
+        View full profile on IUCN Red List ↗
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── IUCN habitat code → human name (V4 uses underscore-separated codes) ──
+const HABITAT_NAMES={
+  '1':'Forest','1_1':'Forest – Boreal','1_2':'Forest – Subarctic','1_3':'Forest – Subantarctic',
+  '1_4':'Forest – Temperate','1_5':'Forest – Subtropical/Tropical Dry',
+  '1_6':'Forest – Subtropical/Tropical Moist Lowland','1_7':'Forest – Mangrove',
+  '1_8':'Forest – Subtropical/Tropical Swamp','1_9':'Forest – Subtropical/Tropical Moist Montane',
+  '2':'Savanna','2_1':'Savanna – Dry','2_2':'Savanna – Moist',
+  '3':'Shrubland','3_1':'Shrubland – Subarctic','3_2':'Shrubland – Subantarctic',
+  '3_3':'Shrubland – Boreal','3_4':'Shrubland – Temperate','3_5':'Shrubland – Subtropical/Tropical Dry',
+  '3_6':'Shrubland – Subtropical/Tropical Moist','3_7':'Shrubland – High Altitude',
+  '3_8':'Shrubland – Mediterranean',
+  '4':'Grassland','4_1':'Grassland – Tundra','4_2':'Grassland – Subarctic',
+  '4_3':'Grassland – Subantarctic','4_4':'Grassland – Temperate',
+  '4_5':'Grassland – Subtropical/Tropical Dry','4_6':'Grassland – Subtropical/Tropical Seasonally Wet',
+  '4_7':'Grassland – Subtropical/Tropical High Altitude',
+  '5':'Wetlands (inland)','5_1':'Rivers/Streams','5_2':'Seasonal Rivers/Streams',
+  '5_3':'Shrub Dominated Wetlands','5_4':'Bogs, Marshes & Swamps','5_5':'Permanent Freshwater Lakes',
+  '5_6':'Seasonal Freshwater Lakes','5_7':'Inland Deltas','5_8':'Saline/Alkaline Lakes',
+  '5_9':'Saline/Alkaline Marshes','5_11':'Alpine Wetlands','5_13':'Inland Saline Lakes',
+  '5_15':'Seasonal Saline Marshes','5_16':'Estuarine Waters','5_17':'Estuarine Tidal Marshes',
+  '6':'Rocky Areas (cliffs, peaks)','7':'Caves & Subterranean Habitats',
+  '8':'Desert','8_1':'Desert – Hot','8_2':'Desert – Temperate','8_3':'Desert – Cold',
+  '9':'Marine Neritic','9_1':'Pelagic','9_2':'Subtidal Rock & Rocky Reefs',
+  '9_3':'Subtidal Loose Rock/Pebble/Gravel','9_4':'Subtidal Sandy','9_5':'Subtidal Sandy-Mud',
+  '9_6':'Subtidal Muddy','9_7':'Macroalgal/Kelp','9_8':'Coral Reefs','9_9':'Seagrass Beds',
+  '10':'Marine Oceanic','11':'Marine Deep Benthic','12':'Marine Intertidal',
+  '12_1':'Rocky Shoreline','12_2':'Sandy Shoreline','12_3':'Shingle & Stony Shoreline',
+  '12_4':'Mudflats','12_6':'Tidepools & Rock Pools','12_7':'Mangrove Submerged Roots',
+  '13':'Marine Coastal/Supratidal',
+  '14':'Artificial/Terrestrial','14_1':'Arable Land','14_2':'Pastureland',
+  '14_3':'Plantations','14_4':'Rural Gardens','14_5':'Urban Areas',
+  '14_6':'Degraded Former Forest',
+  '15':'Artificial/Aquatic & Marine','16':'Introduced Vegetation',
+  '17':'Other','18':'Unknown'
+};
+
+// ── IUCN threat code → human name ──
+const THREAT_NAMES={
+  '1':'Residential & Commercial Development',
+  '1_1':'Housing & Urban Areas','1_2':'Commercial & Industrial Areas','1_3':'Tourism & Recreation',
+  '2':'Agriculture & Aquaculture',
+  '2_1':'Annual & Perennial Crops','2_1_1':'Shifting Agriculture','2_1_2':'Small-holder Farming',
+  '2_1_3':'Agro-industry Farming',
+  '2_2':'Wood & Pulp Plantations',
+  '2_3':'Livestock Farming & Ranching','2_3_1':'Nomadic Grazing',
+  '2_3_2':'Small-holder Grazing/Ranching','2_3_3':'Agro-industry Grazing/Ranching',
+  '2_4':'Marine & Freshwater Aquaculture',
+  '3':'Energy Production & Mining',
+  '3_1':'Oil & Gas Drilling','3_2':'Mining & Quarrying','3_3':'Renewable Energy',
+  '4':'Transportation & Service Corridors',
+  '4_1':'Roads & Railroads','4_2':'Utility & Service Lines','4_3':'Shipping Lanes','4_4':'Flight Paths',
+  '5':'Biological Resource Use',
+  '5_1':'Hunting & Trapping','5_1_1':'Intentional Use (Hunting)','5_1_2':'Unintentional Bycatch',
+  '5_1_3':'Persecution/Control','5_1_4':'Motivation Unknown',
+  '5_2':'Gathering Terrestrial Plants','5_3':'Logging & Wood Harvesting',
+  '5_4':'Fishing & Harvesting Aquatic Resources',
+  '6':'Human Intrusions & Disturbance',
+  '6_1':'Recreational Activities','6_2':'War & Civil Unrest','6_3':'Work & Other Activities',
+  '7':'Natural System Modifications',
+  '7_1':'Fire & Fire Suppression','7_2':'Dams & Water Management','7_3':'Other Ecosystem Modifications',
+  '8':'Invasive & Problematic Species/Diseases',
+  '8_1':'Invasive Non-Native Species','8_2':'Problematic Native Species',
+  '8_3':'Introduced Genetic Material','8_4':'Problematic Species of Unknown Origin',
+  '8_5':'Viral/Prion Diseases','8_6':'Diseases of Unknown Cause',
+  '9':'Pollution',
+  '9_1':'Domestic & Urban Wastewater','9_2':'Industrial & Military Effluents',
+  '9_3':'Agricultural & Forestry Effluents','9_4':'Garbage & Solid Waste',
+  '9_5':'Air-Borne Pollutants','9_6':'Excess Energy',
+  '10':'Geological Events','10_1':'Volcanoes','10_2':'Earthquakes/Tsunamis','10_3':'Landslides',
+  '11':'Climate Change & Severe Weather',
+  '11_1':'Habitat Shifting & Alteration','11_2':'Droughts','11_3':'Temperature Extremes',
+  '11_4':'Storms & Flooding','11_5':'Other Climate Impacts',
+  '12':'Other Options'
+};
+
+function habitatName(code){
+  const k=String(code).replace(/\./g,'_');
+  return HABITAT_NAMES[k]||('Habitat '+k.replace(/_/g,'.'));
+}
+function threatName(code){
+  const k=String(code).replace(/\./g,'_');
+  return THREAT_NAMES[k]||('Threat '+k.replace(/_/g,'.'));
+}
+
+// ── IUCN API KEY — loaded from localStorage, editable in the sidebar UI ──
+let IUCN_KEY = localStorage.getItem('iucn_api_key') || '';
+// Replace with your Cloudflare Worker URL after deploying cloudflare-worker/worker.js
+const PROXY_BASE = localStorage.getItem('iucn_proxy_url') || 'https://rough-tree-8c03.kohazendeveloper.workers.dev';
+
+const TAXON_NAME_ALIASES = {
+  'Antigone antigone': ['Grus antigone'],
+  'Grus antigone': ['Antigone antigone'],
+};
+
+function buildScientificNameCandidates(fullName){
+  const normalized = fullName.trim().replace(/\s+/g, ' ');
+  const seen = new Set();
+  const queue = [normalized, ...(TAXON_NAME_ALIASES[normalized] || [])];
+  const candidates = [];
+
+  for (const name of queue) {
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      const full = parts.join(' ');
+      if (!seen.has(full)) {
+        seen.add(full);
+        candidates.push(parts);
+      }
+    }
+    if (parts.length > 2) {
+      const binomial = parts.slice(0, 2).join(' ');
+      if (!seen.has(binomial)) {
+        seen.add(binomial);
+        candidates.push(parts.slice(0, 2));
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function buildScientificNameUrl(nameParts){
+  let lookupUrl = `/api/iucn/taxa/scientific_name?genus_name=${encodeURIComponent(nameParts[0])}&species_name=${encodeURIComponent(nameParts[1])}`;
+  if (nameParts.length > 2) {
+    lookupUrl += `&infra_name=${encodeURIComponent(nameParts.slice(2).join(' '))}`;
+  }
+  return lookupUrl;
+}
+
+async function fetchAssessmentsByScientificName(fullName){
+  const attempts = [];
+
+  for (const candidate of buildScientificNameCandidates(fullName)) {
+    const lookupUrl = buildScientificNameUrl(candidate);
+    const response = await iucnFetch(lookupUrl);
+    attempts.push({ candidate: candidate.join(' '), status: response.status });
+
+    if (response.status === 401 || response.status === 403) {
+      return { authError: response.status, attempts };
+    }
+    if (response.status === 404) {
+      continue;
+    }
+    if (!response.ok) {
+      return { errorStatus: response.status, attempts };
+    }
+
+    const body = await response.json();
+    const assessments = body.assessments || body.result || [];
+    if (assessments.length) {
+      return { assessments, matchedName: candidate.join(' '), attempts };
+    }
+  }
+
+  return { assessments: [], attempts };
+}
+
+async function iucnFetch(url){
+  const apiPath = url.replace('https://api.iucnredlist.org/api/v4', '');
+  const proxyUrl = `${PROXY_BASE}/api/iucn${apiPath}`;
+  const headers = {};
+  if(IUCN_KEY) headers['X-IUCN-Key'] = IUCN_KEY;
+  const res = await fetch(proxyUrl, {headers});
+  return res;
+}
+
+function saveApiKey(){
+  const val=document.getElementById('api-key-input').value.trim();
+  if(!val)return;
+  IUCN_KEY=val;
+  localStorage.setItem('iucn_api_key',val);
+  updateKeyStatus();
+  document.getElementById('api-key-hint').textContent='Browser key saved. Click any species dot to load data.';
+  document.getElementById('api-key-hint').style.color='#1D9E75';
+}
+
+function updateKeyStatus(){
+  const set=!!IUCN_KEY;
+  const dot=document.getElementById('api-key-status');
+  const input=document.getElementById('api-key-input');
+  if(dot){dot.classList.toggle('set',set)}
+  if(input&&set){input.value=IUCN_KEY;input.placeholder='Key saved ✓'}
+  if(input&&!set){input.value='';input.placeholder='Using server key or paste token'}
+}
+
+// Allow pressing Enter in the input to save
+document.addEventListener('DOMContentLoaded',()=>{
+  updateKeyStatus();
+  const inp=document.getElementById('api-key-input');
+  if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')saveApiKey()});
+});
+
+window._cache = {};
+
+// ── SPECIES DATA (200 real species) ──────────────────────────────
+const SPECIES_DATA = [
+  {id:0,name:"Panthera pardus orientalis",common:"Amur Leopard",status:"CR",taxon:"MAMMALIA",lat:43.5,lng:134.0},
+  {id:0,name:"Rhinoceros sondaicus",common:"Javan Rhino",status:"CR",taxon:"MAMMALIA",lat:-7.5,lng:106.5},
+  {id:0,name:"Pongo abelii",common:"Sumatran Orangutan",status:"CR",taxon:"MAMMALIA",lat:3.5,lng:97.5},
+  {id:0,name:"Gorilla gorilla diehli",common:"Cross River Gorilla",status:"CR",taxon:"MAMMALIA",lat:6.5,lng:9.5},
+  {id:0,name:"Phocoena sinus",common:"Vaquita",status:"CR",taxon:"MAMMALIA",lat:30.8,lng:-114.5},
+  {id:0,name:"Pseudoryx nghetinhensis",common:"Saola",status:"CR",taxon:"MAMMALIA",lat:17.0,lng:105.5},
+  {id:0,name:"Neophocaena asiaeorientalis asiaeorientalis",common:"Yangtze Finless Porpoise",status:"CR",taxon:"MAMMALIA",lat:30.5,lng:114.0},
+  {id:0,name:"Panthera tigris sumatrae",common:"Sumatran Tiger",status:"CR",taxon:"MAMMALIA",lat:0.5,lng:101.5},
+  {id:0,name:"Diceros bicornis",common:"Black Rhino",status:"CR",taxon:"MAMMALIA",lat:-3.0,lng:35.0},
+  {id:0,name:"Gorilla beringei graueri",common:"Grauer's Gorilla",status:"CR",taxon:"MAMMALIA",lat:-1.5,lng:28.5},
+  {id:0,name:"Lipotes vexillifer",common:"Baiji",status:"CR",taxon:"MAMMALIA",lat:31.0,lng:114.5},
+  {id:0,name:"Panthera tigris jacksoni",common:"Malayan Tiger",status:"CR",taxon:"MAMMALIA",lat:4.5,lng:103.0},
+  {id:0,name:"Balaenoptera musculus",common:"Blue Whale",status:"CR",taxon:"MAMMALIA",lat:-40.0,lng:-20.0},
+  {id:0,name:"Eubalaena japonica",common:"North Pacific Right Whale",status:"CR",taxon:"MAMMALIA",lat:52.0,lng:170.0},
+  {id:0,name:"Cyanopsitta spixii",common:"Spix's Macaw",status:"CR",taxon:"AVES",lat:-9.5,lng:-41.0},
+  {id:0,name:"Strigops habroptilus",common:"Kakapo",status:"CR",taxon:"AVES",lat:-46.0,lng:168.0},
+  {id:0,name:"Pithecophaga jefferyi",common:"Philippine Eagle",status:"CR",taxon:"AVES",lat:7.5,lng:126.0},
+  {id:0,name:"Gymnogyps californianus",common:"California Condor",status:"CR",taxon:"AVES",lat:35.5,lng:-119.0},
+  {id:0,name:"Rhynochetos jubatus",common:"Kagu",status:"CR",taxon:"AVES",lat:-21.5,lng:165.5},
+  {id:0,name:"Campephilus principalis",common:"Ivory-billed Woodpecker",status:"CR",taxon:"AVES",lat:34.0,lng:-91.0},
+  {id:0,name:"Nipponia nippon",common:"Crested Ibis",status:"CR",taxon:"AVES",lat:33.5,lng:107.5},
+  {id:0,name:"Geronticus eremita",common:"Northern Bald Ibis",status:"CR",taxon:"AVES",lat:30.5,lng:-9.0},
+  {id:0,name:"Gavialis gangeticus",common:"Gharial",status:"CR",taxon:"REPTILIA",lat:27.0,lng:83.0},
+  {id:0,name:"Astrochelys yniphora",common:"Ploughshare Tortoise",status:"CR",taxon:"REPTILIA",lat:-16.0,lng:46.5},
+  {id:0,name:"Eretmochelys imbricata",common:"Hawksbill Sea Turtle",status:"CR",taxon:"REPTILIA",lat:15.0,lng:-60.0},
+  {id:0,name:"Chelonia mydas",common:"Green Sea Turtle",status:"CR",taxon:"REPTILIA",lat:5.0,lng:-155.0},
+  {id:0,name:"Dermochelys coriacea",common:"Leatherback Sea Turtle",status:"CR",taxon:"REPTILIA",lat:10.0,lng:-61.0},
+  {id:0,name:"Atelopus zeteki",common:"Panamanian Golden Frog",status:"CR",taxon:"AMPHIBIA",lat:8.5,lng:-80.5},
+  {id:0,name:"Andrias davidianus",common:"Chinese Giant Salamander",status:"CR",taxon:"AMPHIBIA",lat:29.0,lng:109.0},
+  {id:0,name:"Ambystoma mexicanum",common:"Axolotl",status:"CR",taxon:"AMPHIBIA",lat:19.5,lng:-99.0},
+  {id:0,name:"Carcharodon carcharias",common:"Great White Shark",status:"CR",taxon:"CHONDRICHTHYES",lat:-35.0,lng:18.0},
+  {id:0,name:"Pristis pectinata",common:"Smalltooth Sawfish",status:"CR",taxon:"CHONDRICHTHYES",lat:25.0,lng:-80.0},
+  {id:0,name:"Cetorhinus maximus",common:"Basking Shark",status:"CR",taxon:"CHONDRICHTHYES",lat:52.0,lng:-10.0},
+  {id:0,name:"Ursus maritimus",common:"Polar Bear",status:"CR",taxon:"MAMMALIA",lat:75.0,lng:-20.0},
+  {id:0,name:"Ailuropoda melanoleuca",common:"Giant Panda",status:"CR",taxon:"MAMMALIA",lat:30.5,lng:103.0},
+  {id:0,name:"Spheniscus demersus",common:"African Penguin",status:"CR",taxon:"AVES",lat:-34.0,lng:18.5},
+  {id:0,name:"Trigonoceps occipitalis",common:"White-headed Vulture",status:"CR",taxon:"AVES",lat:5.0,lng:25.0},
+  {id:0,name:"Gyps africanus",common:"White-backed Vulture",status:"CR",taxon:"AVES",lat:-10.0,lng:30.0},
+  {id:0,name:"Necrosyrtes monachus",common:"Hooded Vulture",status:"CR",taxon:"AVES",lat:12.0,lng:15.0},
+  {id:0,name:"Manis pentadactyla",common:"Chinese Pangolin",status:"CR",taxon:"MAMMALIA",lat:24.0,lng:113.0},
+  {id:0,name:"Panthera tigris tigris",common:"Bengal Tiger",status:"EN",taxon:"MAMMALIA",lat:23.5,lng:82.0},
+  {id:0,name:"Panthera uncia",common:"Snow Leopard",status:"EN",taxon:"MAMMALIA",lat:35.0,lng:83.0},
+  {id:0,name:"Panthera leo",common:"African Lion",status:"EN",taxon:"MAMMALIA",lat:5.0,lng:25.0},
+  {id:0,name:"Lycaon pictus",common:"African Wild Dog",status:"EN",taxon:"MAMMALIA",lat:-10.0,lng:32.0},
+  {id:0,name:"Acinonyx jubatus",common:"Cheetah",status:"EN",taxon:"MAMMALIA",lat:8.0,lng:30.0},
+  {id:0,name:"Gorilla beringei beringei",common:"Mountain Gorilla",status:"EN",taxon:"MAMMALIA",lat:-1.3,lng:29.5},
+  {id:0,name:"Pan troglodytes",common:"Chimpanzee",status:"EN",taxon:"MAMMALIA",lat:5.0,lng:18.0},
+  {id:0,name:"Pan paniscus",common:"Bonobo",status:"EN",taxon:"MAMMALIA",lat:-2.0,lng:24.0},
+  {id:0,name:"Rhincodon typus",common:"Whale Shark",status:"EN",taxon:"CHONDRICHTHYES",lat:5.0,lng:72.0},
+  {id:0,name:"Varanus komodoensis",common:"Komodo Dragon",status:"EN",taxon:"REPTILIA",lat:-8.5,lng:119.5},
+  {id:0,name:"Conraua goliath",common:"Goliath Frog",status:"EN",taxon:"AMPHIBIA",lat:3.5,lng:10.5},
+  {id:0,name:"Grus japonensis",common:"Red-crowned Crane",status:"EN",taxon:"AVES",lat:44.0,lng:130.0},
+  {id:0,name:"Aquila adalberti",common:"Spanish Imperial Eagle",status:"EN",taxon:"AVES",lat:39.0,lng:-6.0},
+  {id:0,name:"Spheniscus mendiculus",common:"Galápagos Penguin",status:"EN",taxon:"AVES",lat:-0.5,lng:-91.0},
+  {id:0,name:"Hippopotamus amphibius",common:"Hippopotamus",status:"VU",taxon:"MAMMALIA",lat:-5.0,lng:28.0},
+  {id:0,name:"Elephas maximus",common:"Asian Elephant",status:"VU",taxon:"MAMMALIA",lat:11.0,lng:80.0},
+  {id:0,name:"Panthera onca",common:"Jaguar",status:"VU",taxon:"MAMMALIA",lat:5.0,lng:-73.0},
+  {id:0,name:"Ailurus fulgens",common:"Red Panda",status:"VU",taxon:"MAMMALIA",lat:27.5,lng:88.5},
+  {id:0,name:"Loxodonta africana",common:"African Elephant",status:"VU",taxon:"MAMMALIA",lat:-3.0,lng:26.0},
+  {id:0,name:"Sphyrna lewini",common:"Scalloped Hammerhead",status:"VU",taxon:"CHONDRICHTHYES",lat:8.0,lng:-80.0},
+  {id:0,name:"Alligator mississippiensis",common:"American Alligator",status:"VU",taxon:"REPTILIA",lat:30.0,lng:-89.0},
+  {id:0,name:"Ara macao",common:"Scarlet Macaw",status:"VU",taxon:"AVES",lat:10.0,lng:-84.0},
+  {id:0,name:"Haliaeetus pelagicus",common:"Steller's Sea Eagle",status:"VU",taxon:"AVES",lat:55.0,lng:149.0},
+  {id:0,name:"Ambystoma tigrinum",common:"Tiger Salamander",status:"VU",taxon:"AMPHIBIA",lat:40.0,lng:-97.0},
+  {id:0,name:"Ceratotherium simum cottoni",common:"Northern White Rhino",status:"CR",taxon:"MAMMALIA",lat:2.5,lng:30.0},
+  {id:0,name:"Dicerorhinus sumatrensis",common:"Sumatran Rhino",status:"CR",taxon:"MAMMALIA",lat:4.5,lng:117.5},
+  {id:0,name:"Nomascus hainanus",common:"Hainan Gibbon",status:"CR",taxon:"MAMMALIA",lat:19.0,lng:109.5},
+  {id:0,name:"Pongo tapanuliensis",common:"Tapanuli Orangutan",status:"CR",taxon:"MAMMALIA",lat:2.0,lng:99.0},
+  {id:0,name:"Eubalaena glacialis",common:"North Atlantic Right Whale",status:"CR",taxon:"MAMMALIA",lat:42.0,lng:-66.0},
+  {id:0,name:"Cacatua haematuropygia",common:"Red-vented Cockatoo",status:"CR",taxon:"AVES",lat:9.5,lng:118.5},
+  {id:0,name:"Aythya innotata",common:"Madagascar Pochard",status:"CR",taxon:"AVES",lat:-14.0,lng:48.5},
+  {id:0,name:"Calidris pygmaea",common:"Spoon-billed Sandpiper",status:"CR",taxon:"AVES",lat:62.0,lng:172.0},
+  {id:0,name:"Rafetus swinhoei",common:"Yangtze Softshell Turtle",status:"CR",taxon:"REPTILIA",lat:31.0,lng:119.0},
+  {id:0,name:"Crocodylus mindorensis",common:"Philippine Crocodile",status:"CR",taxon:"REPTILIA",lat:13.0,lng:121.0},
+  {id:0,name:"Crocodylus siamensis",common:"Siamese Crocodile",status:"CR",taxon:"REPTILIA",lat:13.0,lng:104.0},
+  {id:0,name:"Atelopus varius",common:"Clown Poison Frog",status:"CR",taxon:"AMPHIBIA",lat:9.0,lng:-83.5},
+  {id:0,name:"Nectophrynoides asperginis",common:"Kihansi Spray Toad",status:"CR",taxon:"AMPHIBIA",lat:-8.5,lng:36.0},
+  {id:0,name:"Pristis pristis",common:"Largetooth Sawfish",status:"CR",taxon:"CHONDRICHTHYES",lat:-15.0,lng:130.0},
+  {id:0,name:"Glyphis gangeticus",common:"Ganges Shark",status:"CR",taxon:"CHONDRICHTHYES",lat:24.0,lng:89.0},
+  {id:0,name:"Panthera tigris altaica",common:"Siberian Tiger",status:"EN",taxon:"MAMMALIA",lat:45.0,lng:135.0},
+  {id:0,name:"Tapirus bairdii",common:"Baird's Tapir",status:"EN",taxon:"MAMMALIA",lat:10.0,lng:-84.5},
+  {id:0,name:"Tapirus indicus",common:"Malayan Tapir",status:"EN",taxon:"MAMMALIA",lat:5.0,lng:103.5},
+  {id:0,name:"Platanista gangetica",common:"Ganges River Dolphin",status:"EN",taxon:"MAMMALIA",lat:26.0,lng:84.0},
+  {id:0,name:"Inia geoffrensis",common:"Amazon River Dolphin",status:"EN",taxon:"MAMMALIA",lat:-3.0,lng:-64.0},
+  {id:0,name:"Balaenoptera borealis",common:"Sei Whale",status:"EN",taxon:"MAMMALIA",lat:-40.0,lng:-10.0},
+  {id:0,name:"Nasalis larvatus",common:"Proboscis Monkey",status:"EN",taxon:"MAMMALIA",lat:1.5,lng:115.0},
+  {id:0,name:"Mandrillus leucophaeus",common:"Drill",status:"EN",taxon:"MAMMALIA",lat:4.0,lng:10.0},
+  {id:0,name:"Equus grevyi",common:"Grevy's Zebra",status:"EN",taxon:"MAMMALIA",lat:3.5,lng:38.5},
+  {id:0,name:"Monachus monachus",common:"Mediterranean Monk Seal",status:"EN",taxon:"MAMMALIA",lat:36.5,lng:28.0},
+  {id:0,name:"Enhydra lutris",common:"Sea Otter",status:"EN",taxon:"MAMMALIA",lat:57.0,lng:-153.0},
+  {id:0,name:"Cuon alpinus",common:"Dhole",status:"EN",taxon:"MAMMALIA",lat:25.0,lng:90.0},
+  {id:0,name:"Rhinopithecus roxellana",common:"Golden Snub-nosed Monkey",status:"EN",taxon:"MAMMALIA",lat:32.0,lng:107.0},
+  {id:0,name:"Hylobates lar",common:"Lar Gibbon",status:"EN",taxon:"MAMMALIA",lat:15.0,lng:101.0},
+  {id:0,name:"Sousa chinensis",common:"Indo-Pacific Humpback Dolphin",status:"EN",taxon:"MAMMALIA",lat:22.0,lng:113.0},
+  {id:0,name:"Cephalorhynchus hectori",common:"Hector's Dolphin",status:"EN",taxon:"MAMMALIA",lat:-44.0,lng:171.0},
+  {id:0,name:"Phataginus tricuspis",common:"White-bellied Pangolin",status:"EN",taxon:"MAMMALIA",lat:2.0,lng:20.0},
+  {id:0,name:"Pteropus rodricensis",common:"Rodrigues Flying Fox",status:"EN",taxon:"MAMMALIA",lat:-19.5,lng:63.5},
+  {id:0,name:"Orcaella brevirostris",common:"Irrawaddy Dolphin",status:"EN",taxon:"MAMMALIA",lat:17.0,lng:96.0},
+  {id:0,name:"Alcelaphus buselaphus swaynei",common:"Swayne's Hartebeest",status:"EN",taxon:"MAMMALIA",lat:8.0,lng:39.0},
+  {id:0,name:"Balearica regulorum",common:"Grey Crowned Crane",status:"EN",taxon:"AVES",lat:-5.0,lng:35.0},
+  {id:0,name:"Polemaetus bellicosus",common:"Martial Eagle",status:"EN",taxon:"AVES",lat:-10.0,lng:28.0},
+  {id:0,name:"Terathopius ecaudatus",common:"Bateleur Eagle",status:"EN",taxon:"AVES",lat:5.0,lng:25.0},
+  {id:0,name:"Sagittarius serpentarius",common:"Secretary Bird",status:"EN",taxon:"AVES",lat:-25.0,lng:24.0},
+  {id:0,name:"Torgos tracheliotos",common:"Lappet-faced Vulture",status:"EN",taxon:"AVES",lat:8.0,lng:30.0},
+  {id:0,name:"Psittacus erithacus",common:"Grey Parrot",status:"EN",taxon:"AVES",lat:3.0,lng:22.0},
+  {id:0,name:"Ara ambiguus",common:"Great Green Macaw",status:"EN",taxon:"AVES",lat:10.0,lng:-83.5},
+  {id:0,name:"Harpyhaliaetus coronatus",common:"Crowned Solitary Eagle",status:"EN",taxon:"AVES",lat:-22.0,lng:-57.0},
+  {id:0,name:"Cyanoramphus forbesi",common:"Forbes' Parakeet",status:"EN",taxon:"AVES",lat:-44.0,lng:-176.0},
+  {id:0,name:"Eutriorchis astur",common:"Madagascar Serpent Eagle",status:"EN",taxon:"AVES",lat:-18.0,lng:49.0},
+  {id:0,name:"Diomedea amsterdamensis",common:"Amsterdam Albatross",status:"EN",taxon:"AVES",lat:-37.5,lng:77.5},
+  {id:0,name:"Ciconia boyciana",common:"Oriental Stork",status:"EN",taxon:"AVES",lat:45.0,lng:132.0},
+  {id:0,name:"Neophron percnopterus",common:"Egyptian Vulture",status:"EN",taxon:"AVES",lat:25.0,lng:30.0},
+  {id:0,name:"Grus americana",common:"Whooping Crane",status:"EN",taxon:"AVES",lat:28.0,lng:-97.0},
+  {id:0,name:"Larus atlanticus",common:"Olrog's Gull",status:"EN",taxon:"AVES",lat:-40.0,lng:-62.0},
+  {id:0,name:"Numenius madagascariensis",common:"Far Eastern Curlew",status:"EN",taxon:"AVES",lat:-33.0,lng:151.0},
+  {id:0,name:"Amazona vinacea",common:"Vinaceous Amazon",status:"EN",taxon:"AVES",lat:-23.0,lng:-51.0},
+  {id:0,name:"Cacatua moluccensis",common:"Salmon-crested Cockatoo",status:"EN",taxon:"AVES",lat:-3.0,lng:129.0},
+  {id:0,name:"Picoides borealis",common:"Red-cockaded Woodpecker",status:"EN",taxon:"AVES",lat:32.0,lng:-84.0},
+  {id:0,name:"Acrocephalus rodericanus",common:"Rodrigues Warbler",status:"EN",taxon:"AVES",lat:-19.5,lng:63.5},
+  {id:0,name:"Iguana delicatissima",common:"Lesser Antillean Iguana",status:"EN",taxon:"REPTILIA",lat:16.0,lng:-61.5},
+  {id:0,name:"Cyclura lewisi",common:"Grand Cayman Blue Iguana",status:"EN",taxon:"REPTILIA",lat:19.3,lng:-81.3},
+  {id:0,name:"Heosemys spinosa",common:"Spiny Terrapin",status:"EN",taxon:"REPTILIA",lat:4.0,lng:117.0},
+  {id:0,name:"Cuora amboinensis",common:"Amboina Box Turtle",status:"EN",taxon:"REPTILIA",lat:2.0,lng:128.0},
+  {id:0,name:"Furcifer labordi",common:"Labord's Chameleon",status:"EN",taxon:"REPTILIA",lat:-23.0,lng:44.0},
+  {id:0,name:"Brookesia micra",common:"Micro Chameleon",status:"EN",taxon:"REPTILIA",lat:-13.0,lng:49.0},
+  {id:0,name:"Tiliqua adelaidensis",common:"Pygmy Blue-tongued Skink",status:"EN",taxon:"REPTILIA",lat:-34.5,lng:138.5},
+  {id:0,name:"Platysternum megacephalum",common:"Big-headed Turtle",status:"EN",taxon:"REPTILIA",lat:20.0,lng:102.0},
+  {id:0,name:"Geoemyda japonica",common:"Ryukyu Leaf Turtle",status:"EN",taxon:"REPTILIA",lat:26.5,lng:128.0},
+  {id:0,name:"Coleonyx switaki",common:"Barefoot Gecko",status:"EN",taxon:"REPTILIA",lat:32.0,lng:-116.0},
+  {id:0,name:"Litoria aurea",common:"Green and Golden Bell Frog",status:"EN",taxon:"AMPHIBIA",lat:-33.5,lng:151.0},
+  {id:0,name:"Tylototriton shanjing",common:"Mandarin Salamander",status:"EN",taxon:"AMPHIBIA",lat:25.0,lng:100.0},
+  {id:0,name:"Ichthyophis bombayensis",common:"Bombay Caecilian",status:"EN",taxon:"AMPHIBIA",lat:18.5,lng:73.0},
+  {id:0,name:"Batrachuperus tibetanus",common:"Tibetan Stream Salamander",status:"EN",taxon:"AMPHIBIA",lat:32.0,lng:101.0},
+  {id:0,name:"Leiopelma hamiltoni",common:"Hamilton's Frog",status:"EN",taxon:"AMPHIBIA",lat:-46.0,lng:168.0},
+  {id:0,name:"Carcharhinus obscurus",common:"Dusky Shark",status:"EN",taxon:"CHONDRICHTHYES",lat:35.0,lng:-30.0},
+  {id:0,name:"Isurus oxyrinchus",common:"Shortfin Mako",status:"EN",taxon:"CHONDRICHTHYES",lat:30.0,lng:-40.0},
+  {id:0,name:"Alopias superciliosus",common:"Bigeye Thresher",status:"EN",taxon:"CHONDRICHTHYES",lat:20.0,lng:-30.0},
+  {id:0,name:"Mustelus mustelus",common:"Smooth-hound",status:"EN",taxon:"CHONDRICHTHYES",lat:35.0,lng:-5.0},
+  {id:0,name:"Squatina argentina",common:"Argentine Angelshark",status:"EN",taxon:"CHONDRICHTHYES",lat:-38.0,lng:-57.0},
+  {id:0,name:"Raja undulata",common:"Undulate Ray",status:"EN",taxon:"CHONDRICHTHYES",lat:43.0,lng:-9.0},
+  {id:0,name:"Gymnura altavela",common:"Spiny Butterfly Ray",status:"EN",taxon:"CHONDRICHTHYES",lat:36.0,lng:-6.0},
+  {id:0,name:"Mobula mobular",common:"Giant Devil Ray",status:"EN",taxon:"CHONDRICHTHYES",lat:38.0,lng:15.0},
+  {id:0,name:"Carcharhinus plumbeus",common:"Sandbar Shark",status:"EN",taxon:"CHONDRICHTHYES",lat:35.0,lng:-75.0},
+  {id:0,name:"Ginglymostoma cirratum",common:"Nurse Shark",status:"EN",taxon:"CHONDRICHTHYES",lat:25.0,lng:-80.0},
+  {id:0,name:"Tapirus terrestris",common:"South American Tapir",status:"VU",taxon:"MAMMALIA",lat:-10.0,lng:-60.0},
+  {id:0,name:"Balaenoptera physalus",common:"Fin Whale",status:"VU",taxon:"MAMMALIA",lat:-45.0,lng:-20.0},
+  {id:0,name:"Trichechus manatus",common:"West Indian Manatee",status:"VU",taxon:"MAMMALIA",lat:20.0,lng:-87.0},
+  {id:0,name:"Dugong dugon",common:"Dugong",status:"VU",taxon:"MAMMALIA",lat:-20.0,lng:115.0},
+  {id:0,name:"Ursus thibetanus",common:"Asian Black Bear",status:"VU",taxon:"MAMMALIA",lat:30.0,lng:104.0},
+  {id:0,name:"Helarctos malayanus",common:"Sun Bear",status:"VU",taxon:"MAMMALIA",lat:4.0,lng:113.0},
+  {id:0,name:"Tremarctos ornatus",common:"Spectacled Bear",status:"VU",taxon:"MAMMALIA",lat:-8.0,lng:-77.0},
+  {id:0,name:"Neofelis nebulosa",common:"Clouded Leopard",status:"VU",taxon:"MAMMALIA",lat:26.0,lng:96.0},
+  {id:0,name:"Prionailurus viverrinus",common:"Fishing Cat",status:"VU",taxon:"MAMMALIA",lat:22.0,lng:89.0},
+  {id:0,name:"Myrmecophaga tridactyla",common:"Giant Anteater",status:"VU",taxon:"MAMMALIA",lat:-15.0,lng:-56.0},
+  {id:0,name:"Priodontes maximus",common:"Giant Armadillo",status:"VU",taxon:"MAMMALIA",lat:-10.0,lng:-63.0},
+  {id:0,name:"Monodon monoceros",common:"Narwhal",status:"VU",taxon:"MAMMALIA",lat:75.0,lng:-70.0},
+  {id:0,name:"Trichechus inunguis",common:"Amazonian Manatee",status:"VU",taxon:"MAMMALIA",lat:-3.0,lng:-61.0},
+  {id:0,name:"Hippocamelus bisulcus",common:"South Andean Deer",status:"VU",taxon:"MAMMALIA",lat:-45.0,lng:-73.0},
+  {id:0,name:"Rangifer tarandus",common:"Reindeer",status:"VU",taxon:"MAMMALIA",lat:65.0,lng:25.0},
+  {id:0,name:"Harpia harpyja",common:"Harpy Eagle",status:"VU",taxon:"AVES",lat:-3.0,lng:-60.0},
+  {id:0,name:"Aquila heliaca",common:"Eastern Imperial Eagle",status:"VU",taxon:"AVES",lat:47.0,lng:20.0},
+  {id:0,name:"Aquila clanga",common:"Greater Spotted Eagle",status:"VU",taxon:"AVES",lat:55.0,lng:35.0},
+  {id:0,name:"Anodorhynchus hyacinthinus",common:"Hyacinth Macaw",status:"VU",taxon:"AVES",lat:-15.0,lng:-55.0},
+  {id:0,name:"Phoebastria albatrus",common:"Short-tailed Albatross",status:"VU",taxon:"AVES",lat:30.0,lng:170.0},
+  {id:0,name:"Diomedea exulans",common:"Wandering Albatross",status:"VU",taxon:"AVES",lat:-50.0,lng:70.0},
+  {id:0,name:"Pelecanus crispus",common:"Dalmatian Pelican",status:"VU",taxon:"AVES",lat:45.0,lng:28.0},
+  {id:0,name:"Grus monacha",common:"Hooded Crane",status:"VU",taxon:"AVES",lat:37.0,lng:127.0},
+  {id:0,name:"Grus vipio",common:"White-naped Crane",status:"VU",taxon:"AVES",lat:45.0,lng:120.0},
+  {id:0,name:"Anthropoides paradiseus",common:"Blue Crane",status:"VU",taxon:"AVES",lat:-33.0,lng:25.0},
+  {id:0,name:"Balaeniceps rex",common:"Shoebill",status:"VU",taxon:"AVES",lat:3.0,lng:32.0},
+  {id:0,name:"Pterodroma feae",common:"Fea's Petrel",status:"VU",taxon:"AVES",lat:15.0,lng:-25.0},
+  {id:0,name:"Casuarius casuarius",common:"Southern Cassowary",status:"VU",taxon:"AVES",lat:-6.0,lng:147.0},
+  {id:0,name:"Guaruba guarouba",common:"Golden Parakeet",status:"VU",taxon:"AVES",lat:-5.0,lng:-55.0},
+  {id:0,name:"Ara militaris",common:"Military Macaw",status:"VU",taxon:"AVES",lat:22.0,lng:-103.0},
+  {id:0,name:"Caretta caretta",common:"Loggerhead Sea Turtle",status:"VU",taxon:"REPTILIA",lat:30.0,lng:-30.0},
+  {id:0,name:"Lepidochelys olivacea",common:"Olive Ridley Turtle",status:"VU",taxon:"REPTILIA",lat:15.0,lng:-95.0},
+  {id:0,name:"Natator depressus",common:"Flatback Sea Turtle",status:"VU",taxon:"REPTILIA",lat:-20.0,lng:130.0},
+  {id:0,name:"Crocodylus acutus",common:"American Crocodile",status:"VU",taxon:"REPTILIA",lat:10.0,lng:-83.0},
+  {id:0,name:"Crocodylus palustris",common:"Mugger Crocodile",status:"VU",taxon:"REPTILIA",lat:24.0,lng:76.0},
+  {id:0,name:"Python bivittatus",common:"Burmese Python",status:"VU",taxon:"REPTILIA",lat:21.0,lng:97.0},
+  {id:0,name:"Geochelone elegans",common:"Indian Star Tortoise",status:"VU",taxon:"REPTILIA",lat:20.0,lng:78.0},
+  {id:0,name:"Testudo graeca",common:"Greek Tortoise",status:"VU",taxon:"REPTILIA",lat:38.0,lng:28.0},
+  {id:0,name:"Cyclura nubila",common:"Cuban Rock Iguana",status:"VU",taxon:"REPTILIA",lat:22.0,lng:-79.0},
+  {id:0,name:"Geochelone nigra",common:"Galápagos Tortoise",status:"VU",taxon:"REPTILIA",lat:-0.5,lng:-91.0},
+  {id:0,name:"Leiopelma hochstetteri",common:"Hochstetter's Frog",status:"VU",taxon:"AMPHIBIA",lat:-37.0,lng:176.0},
+  {id:0,name:"Calyptocephalella gayi",common:"Chilean Giant Frog",status:"VU",taxon:"AMPHIBIA",lat:-33.0,lng:-70.5},
+  {id:0,name:"Cryptobranchus alleganiensis",common:"Hellbender",status:"VU",taxon:"AMPHIBIA",lat:37.0,lng:-82.0},
+  {id:0,name:"Hydromantes italicus",common:"Italian Cave Salamander",status:"VU",taxon:"AMPHIBIA",lat:44.0,lng:12.0},
+  {id:0,name:"Salamandrina perspicillata",common:"Spectacled Salamander",status:"VU",taxon:"AMPHIBIA",lat:44.0,lng:11.0},
+  {id:0,name:"Tylototriton verrucosus",common:"Crocodile Newt",status:"VU",taxon:"AMPHIBIA",lat:27.0,lng:99.0},
+  {id:0,name:"Paramesotriton chinensis",common:"Chinese Warty Newt",status:"VU",taxon:"AMPHIBIA",lat:27.0,lng:118.0},
+  {id:0,name:"Atelopus spumarius",common:"Pebas Stubfoot Toad",status:"VU",taxon:"AMPHIBIA",lat:-3.5,lng:-72.0},
+  {id:0,name:"Lamna nasus",common:"Porbeagle",status:"VU",taxon:"CHONDRICHTHYES",lat:55.0,lng:-20.0},
+  {id:0,name:"Alopias vulpinus",common:"Common Thresher",status:"VU",taxon:"CHONDRICHTHYES",lat:40.0,lng:-30.0},
+  {id:0,name:"Sphyrna zygaena",common:"Smooth Hammerhead",status:"VU",taxon:"CHONDRICHTHYES",lat:30.0,lng:-20.0},
+  {id:0,name:"Oxynotus centrina",common:"Angular Roughshark",status:"VU",taxon:"CHONDRICHTHYES",lat:40.0,lng:5.0},
+  {id:0,name:"Dipturus oxyrinchus",common:"Longnosed Skate",status:"VU",taxon:"CHONDRICHTHYES",lat:45.0,lng:-5.0},
+  {id:0,name:"Torpedo torpedo",common:"Ocellate Electric Ray",status:"VU",taxon:"CHONDRICHTHYES",lat:38.0,lng:5.0},
+  {id:0,name:"Himantura uarnak",common:"Honeycomb Whipray",status:"VU",taxon:"CHONDRICHTHYES",lat:15.0,lng:55.0},
+  {id:0,name:"Manta birostris",common:"Oceanic Manta Ray",status:"VU",taxon:"CHONDRICHTHYES",lat:15.0,lng:65.0},
+];
+
+// ── JITTER ───────────────────────────────────────────────────────
+function _hash(s){let h=0;for(let i=0;i<s.name.length;i++)h=(h*31+s.name.charCodeAt(i))>>>0;return h}
+function jitteredLat(s){return s.lat+(_hash(s)%7-3)*0.4}
+function jitteredLng(s){return s.lng+(_hash(s)%5-2)*0.4}
+
+// ── STATUS CONFIG ─────────────────────────────────────────────────
+const STATUS_COLORS={CR:'#FF5252',EN:'#FFB347',VU:'#40C8F4'};
+const STATUS_LABELS={CR:'CR — Critically Endangered',EN:'EN — Endangered',VU:'VU — Vulnerable'};
+
+// ── THEME ─────────────────────────────────────────────────────────
+const root=document.documentElement;
+if(localStorage.getItem('theme')==='dark')root.classList.add('dark');
+const themeBtn=document.getElementById('theme-toggle');
+const GLOBE_TEXTURES={
+  day:'assets/textures/earth-day-nasa-color-5400x2700.jpg',
+  night:'assets/textures/earth-night-nasa-13500x6750.jpg',
+};
+const SKY_BACKGROUNDS={day:'',night:''};
+
+function updateThemeBtn(){
+  const dark=root.classList.contains('dark');
+  themeBtn.textContent=dark?'🌙':'☀️';
+  themeBtn.setAttribute('aria-label',dark?'Current mode: dark':'Current mode: light');
+}
+
+function makeSkyTexture(mode){
+  const c=document.createElement('canvas');
+  c.width=1920;c.height=1080;
+  const ctx=c.getContext('2d');
+
+  if(mode==='day'){
+    const gradient=ctx.createRadialGradient(c.width*0.5,c.height*0.35,40,c.width*0.5,c.height*0.35,c.width*0.7);
+    gradient.addColorStop(0,'#d8ebff');
+    gradient.addColorStop(0.45,'#b7d6fb');
+    gradient.addColorStop(1,'#7aa6d8');
+    ctx.fillStyle=gradient;
+    ctx.fillRect(0,0,c.width,c.height);
+  }else{
+    ctx.fillStyle='#000';
+    ctx.fillRect(0,0,c.width,c.height);
+    for(let i=0;i<600;i++){
+      const x=Math.random()*c.width,y=Math.random()*c.height;
+      const r=Math.random()*1.4,op=(0.4+Math.random()*0.6).toFixed(2);
+      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,255,255,${op})`;ctx.fill();
+    }
+    for(let i=0;i<40;i++){
+      const x=Math.random()*c.width,y=Math.random()*c.height;
+      ctx.beginPath();ctx.arc(x,y,1.2,0,Math.PI*2);
+      ctx.fillStyle=i%2===0?'rgba(180,210,255,0.8)':'rgba(255,230,200,0.7)';
+      ctx.fill();
+    }
+  }
+
+  return c.toDataURL();
+}
+
+function applyGlobeTheme(){
+  const dark=root.classList.contains('dark');
+  document.body.style.backgroundImage=`url(${dark?SKY_BACKGROUNDS.night:SKY_BACKGROUNDS.day})`;
+  document.body.style.backgroundSize='cover';
+
+  if(!window._globe)return;
+  window._globe.atmosphereColor(dark?'#3A8FDF':'#1565C0');
+  window._globe.backgroundColor('rgba(0,0,0,0)');
+  window._globe
+    .globeImageUrl(dark?GLOBE_TEXTURES.night:GLOBE_TEXTURES.day)
+    .polygonCapColor(()=>'rgba(0,0,0,0)')
+    .polygonStrokeColor(()=>dark?'rgba(255,255,255,0.18)':'rgba(27,42,64,0.22)');
+}
+
+themeBtn.addEventListener('click',()=>{
+  root.classList.toggle('dark');
+  localStorage.setItem('theme',root.classList.contains('dark')?'dark':'light');
+  applyGlobeTheme();
+  updateThemeBtn();
+});
+
+updateThemeBtn();
+SKY_BACKGROUNDS.day=makeSkyTexture('day');
+SKY_BACKGROUNDS.night=makeSkyTexture('night');
+applyGlobeTheme();
+
+// ── GLOBE INIT ────────────────────────────────────────────────────
+let activeFilters=new Set();
+let activeTaxons=new Set();
+
+
+const globeContainer=document.getElementById('globe-container');
+const globe=Globe({rendererConfig:{alpha:true,antialias:true}})(globeContainer)
+  .width(globeContainer.offsetWidth)
+  .height(window.innerHeight-48)
+  .backgroundColor('rgba(0,0,0,0)')
+  .showGraticules(false)
+  .showAtmosphere(true)
+  .atmosphereColor(root.classList.contains('dark')?'#3A8FDF':'#1565C0')
+  .atmosphereAltitude(0.15)
+  .globeImageUrl(root.classList.contains('dark')?GLOBE_TEXTURES.night:GLOBE_TEXTURES.day);
+
+window._globe=globe;
+
+globe.onGlobeReady(()=>{
+  applyGlobeTheme();
+  // Restore camera position saved from another globe view
+  const cam=JSON.parse(localStorage.getItem('iucn_camera')||'null');
+  if(cam){
+    globe.pointOfView(cam,0);
+  } else {
+    globe.pointOfView({lat:20,lng:0,altitude:8},0);
+    setTimeout(()=>{
+      const startAlt=8, endAlt=1.8, dur=5000;
+      const t0=performance.now();
+      (function step(now){
+        const p=Math.min((now-t0)/dur,1);
+        const ease=1-Math.pow(1-p,3);
+        globe.pointOfView({lat:20,lng:0,altitude:startAlt+(endAlt-startAlt)*ease},0);
+        if(p<1)requestAnimationFrame(step);
+      })(performance.now());
+    },300);
+  }
+  // Load country outlines for visual reference
+  fetch('https://unpkg.com/world-atlas@2/countries-110m.json')
+    .then(r=>r.json())
+    .then(world=>{
+      const countries=topojson.feature(world,world.objects.countries);
+      globe
+        .polygonsData(countries.features)
+        .polygonCapColor(()=>'rgba(0,0,0,0)')
+        .polygonSideColor(()=>'rgba(0,0,0,0)')
+        .polygonStrokeColor(()=>root.classList.contains('dark')?'rgba(255,255,255,0.18)':'rgba(27,42,64,0.22)')
+        .polygonAltitude(0.005);
+    });
+});
+
+// Highlight state — declared before globe chain so arrow functions can close over it
+let _hl=null;
+let _hlPausedRotation=false;
+
+globe
+  .pointsData([])
+  .pointLat(d=>jitteredLat(d))
+  .pointLng(d=>jitteredLng(d))
+  .pointColor(d=>d.name===_hl?.name?'#ffffff':STATUS_COLORS[d.status])
+  .pointRadius(d=>d.name===_hl?.name?1.4:d.status==='CR'?0.65:d.status==='EN'?0.5:0.4)
+  .pointAltitude(d=>d.name===_hl?.name?0.06:d.status==='CR'?0.03:0.015)
+  .pointLabel(d=>`<div style="background:rgba(8,8,12,0.88);backdrop-filter:blur(12px);color:#fff;padding:8px 14px;border-radius:10px;font-size:12px;max-width:200px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 4px 20px rgba(0,0,0,0.4)"><b style="font-size:13px">${d.common}</b><br/><i style="color:#a0a098">${d.name}</i><br/><span style="color:${STATUS_COLORS[d.status]};font-weight:700">${STATUS_LABELS[d.status]}</span></div>`)
+  .onPointClick((species,event)=>{
+    event.stopPropagation();
+    openSidebar(species);
+    setHighlight(species);
+  });
+
+// Ring layer: CR pulsing rings + highlight ring
+
+function computeFilterState(){
+  const visible=SPECIES_DATA.filter(s=>activeFilters.has(s.status)&&activeTaxons.has(s.taxon));
+  const counts={CR:0,EN:0,VU:0};
+  const taxonCounts={MAMMALIA:0,AVES:0,REPTILIA:0,AMPHIBIA:0,CHONDRICHTHYES:0};
+  for(const s of visible){
+    if(counts[s.status]!==undefined)counts[s.status]++;
+    if(taxonCounts[s.taxon]!==undefined)taxonCounts[s.taxon]++;
+  }
+  const rings=[
+    ...visible.filter(s=>s.status==='CR').map(s=>({...s,_ring:'cr'})),
+    ...(_hl?[{..._hl,_ring:'hl'}]:[])
+  ];
+  return{visible,counts,taxonCounts,rings,isAllActive:activeFilters.size===3&&activeTaxons.size===5};
+}
+
+function renderFromState(state){
+  globe.pointsData(state.visible);
+  globe.ringsData(state.rings);
+  const countEl=document.getElementById('count-num');
+  const labelEl=document.getElementById('count-label');
+  if(countEl)countEl.textContent=state.visible.length;
+  if(labelEl)labelEl.textContent=state.visible.length===SPECIES_DATA.length?'species visible':`of ${SPECIES_DATA.length} species visible`;
+  ['CR','EN','VU'].forEach(s=>{
+    const l=document.getElementById('legend-'+s.toLowerCase());if(l)l.textContent=state.counts[s];
+    const sc=document.getElementById('stat-'+s.toLowerCase());if(sc)sc.textContent=state.counts[s];
+  });
+  const resetBtn=document.getElementById('reset-filters');
+  if(resetBtn)resetBtn.classList.toggle('visible',!state.isAllActive);
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',activeFilters.has(b.dataset.status)));
+  document.querySelectorAll('.taxon-btn').forEach(b=>b.classList.toggle('active',activeTaxons.has(b.dataset.taxon)));
+  _syncCharts(state);
+}
+
+function _syncCharts(state){
+  const taxonKeys=['MAMMALIA','AVES','REPTILIA','AMPHIBIA','CHONDRICHTHYES'];
+  const{CR:crC,EN:enC,VU:vuC}=state.counts;
+  const taxonData=taxonKeys.map(k=>state.taxonCounts[k]||0);
+  if(!statusChart||!taxonChart){
+    const ctx1=document.getElementById('status-chart');
+    if(ctx1&&typeof Chart!=='undefined'){
+      statusChart=new Chart(ctx1,{type:'doughnut',data:{
+        labels:['Critically Endangered','Endangered','Vulnerable'],
+        datasets:[{data:[crC,enC,vuC],backgroundColor:['#FF5252','#FFB347','#40C8F4'],borderWidth:0,hoverBorderWidth:2,hoverBorderColor:'#fff'}]
+      },options:{responsive:true,maintainAspectRatio:true,cutout:'65%',plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleFont:{family:'Inter'},bodyFont:{family:'Inter'},cornerRadius:8,padding:10}},animation:{animateRotate:true,duration:1200}}});
+    }
+    const ctx2=document.getElementById('taxon-chart');
+    if(ctx2&&typeof Chart!=='undefined'){
+      taxonChart=new Chart(ctx2,{type:'bar',data:{
+        labels:['Mammals','Birds','Reptiles','Amphibians','Marine'],
+        datasets:[{data:taxonData,backgroundColor:['#FF6B6B','#FFA94D','#51CF66','#74C0FC','#9775FA'],borderRadius:6,borderSkipped:false}]
+      },options:{responsive:true,maintainAspectRatio:true,indexAxis:'y',plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(0,0,0,0.85)',cornerRadius:8}},scales:{x:{display:false,grid:{display:false}},y:{grid:{display:false},ticks:{color:'#a0a098',font:{family:'Inter',size:11,weight:'600'}}}},animation:{duration:800}}});
+    }
+  } else {
+    statusChart.data.datasets[0].data=[crC,enC,vuC];
+    statusChart.update('none');
+    taxonChart.data.datasets[0].data=taxonData;
+    taxonChart.update('none');
+  }
+}
+
+globe
+  .ringsData([])
+  .ringLat(d=>jitteredLat(d))
+  .ringLng(d=>jitteredLng(d))
+  .ringAltitude(d=>d._ring==='hl'?0.01:0.005)
+  .ringColor(d=>d._ring==='hl'
+    ?t=>`rgba(255,255,255,${(1-t)*0.85})`
+    :t=>`rgba(255,82,82,${1-t})`)
+  .ringMaxRadius(d=>d._ring==='hl'?9:3)
+  .ringPropagationSpeed(d=>d._ring==='hl'?2.5:1.5)
+  .ringRepeatPeriod(d=>d._ring==='hl'?400:2000);
+
+function setHighlight(species){
+  _hl=species;
+  renderFromState(computeFilterState());
+  // Always pause rotation while beacon is active (regardless of hover/lock state)
+  globe.controls().autoRotate=false;
+  _hlPausedRotation=true;
+  const btn=document.getElementById('rotation-btn');
+  btn.textContent='▶  Rotation';
+  btn.classList.add('locked');
+  btn.title='Resume rotation';
+  const badge=document.getElementById('highlight-badge');
+  document.getElementById('highlight-name').textContent=species.common;
+  badge.style.display='flex';
+}
+
+function clearHighlight(){
+  _hl=null;
+  renderFromState(computeFilterState());
+  // Restore rotation only if we were the ones who paused it
+  if(_hlPausedRotation&&!_rotLocked){
+    globe.controls().autoRotate=true;
+    _hlPausedRotation=false;
+    const btn=document.getElementById('rotation-btn');
+    btn.textContent='⏸  Rotation';
+    btn.classList.remove('locked');
+    btn.title='Pause rotation';
+  }
+  document.getElementById('highlight-badge').style.display='none';
+}
+
+// Rotation lock
+let _rotLocked=false;
+function toggleRotation(){
+  _rotLocked=!_rotLocked;
+  globe.controls().autoRotate=!_rotLocked;
+  const btn=document.getElementById('rotation-btn');
+  btn.textContent=_rotLocked?'▶  Rotation':'⏸  Rotation';
+  btn.classList.toggle('locked',_rotLocked);
+  btn.title=_rotLocked?'Resume rotation':'Pause rotation';
+}
+
+globe.controls().autoRotate=true;
+globe.controls().autoRotateSpeed=0.5;
+globe.controls().enableDamping=true;
+
+globeContainer.addEventListener('mouseenter',()=>{if(!_rotLocked&&!_hlPausedRotation)globe.controls().autoRotate=false});
+globeContainer.addEventListener('mouseleave',()=>{if(!_rotLocked&&!_hlPausedRotation)globe.controls().autoRotate=true});
+
+// ── SIDEBAR RESIZE ────────────────────────────────────────────────
+(()=>{
+  const sidebar=document.getElementById('sidebar');
+  const handle=document.getElementById('sidebar-resize');
+  const STORAGE_KEY='iucn_sidebar_width';
+  const saved=localStorage.getItem(STORAGE_KEY);
+  if(saved) sidebar.style.width=saved+'px';
+
+  let startX,startW;
+  handle.addEventListener('mousedown',e=>{
+    startX=e.clientX;
+    startW=sidebar.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor='col-resize';
+    document.body.style.userSelect='none';
+
+    const min=parseInt(getComputedStyle(sidebar).minWidth);
+    const max=parseInt(getComputedStyle(sidebar).maxWidth);
+    let lastW=startW;
+    const onMove=e=>{
+      const dx=startX-e.clientX;
+      const w=Math.min(max,Math.max(min,startW+dx));
+      sidebar.style.width=w+'px';
+      if(w!==lastW){lastW=w;globe.width(globeContainer.offsetWidth);}
+    };
+    const onUp=()=>{
+      handle.classList.remove('dragging');
+      document.body.style.cursor='';
+      document.body.style.userSelect='';
+      localStorage.setItem(STORAGE_KEY,sidebar.offsetWidth);
+      document.removeEventListener('mousemove',onMove);
+      document.removeEventListener('mouseup',onUp);
+    };
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+  });
+})();
+
+window.addEventListener('resize',()=>{
+  globe.width(globeContainer.offsetWidth).height(window.innerHeight-48);
+});
+
+// Save camera when navigating to another globe view
+document.querySelectorAll('.nav-link').forEach(link=>{
+  link.addEventListener('click',()=>{
+    localStorage.setItem('iucn_camera',JSON.stringify(globe.pointOfView()));
+  });
+});
+
+// ── FILTER BUTTONS ────────────────────────────────────────────────
+let statusChart=null, taxonChart=null;
+
+function resetAllFilters(){
+  activeFilters=new Set(['CR','EN','VU']);
+  activeTaxons=new Set(['MAMMALIA','AVES','REPTILIA','AMPHIBIA','CHONDRICHTHYES']);
+  renderFromState(computeFilterState());
+}
+
+renderFromState(computeFilterState());
+
+document.querySelectorAll('.filter-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const status=btn.dataset.status;
+    if(activeFilters.has(status))activeFilters.delete(status);
+    else activeFilters.add(status);
+    renderFromState(computeFilterState());
+  });
+});
+document.querySelectorAll('.taxon-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const taxon=btn.dataset.taxon;
+    if(activeTaxons.has(taxon))activeTaxons.delete(taxon);
+    else activeTaxons.add(taxon);
+    renderFromState(computeFilterState());
+  });
+});
+
+// ── SEARCH ────────────────────────────────────────────────────────
+(()=>{
+  const input=document.getElementById('search-input');
+  const results=document.getElementById('search-results');
+  if(!input||!results)return;
+  input.addEventListener('input',()=>{
+    const q=input.value.trim().toLowerCase();
+    if(q.length<2){results.style.display='none';return;}
+    const matches=SPECIES_DATA.filter(s=>
+      s.common.toLowerCase().includes(q)||s.name.toLowerCase().includes(q)
+    ).slice(0,10);
+    if(!matches.length){results.style.display='none';return;}
+    results.innerHTML=matches.map(s=>`
+      <div class="search-item" data-name="${s.name}">
+        <span class="s-dot" style="background:${STATUS_COLORS[s.status]}"></span>
+        <div><span class="common">${s.common}</span><br/><span class="sci">${s.name}</span></div>
+      </div>
+    `).join('');
+    results.style.display='block';
+    results.querySelectorAll('.search-item').forEach(item=>{
+      item.addEventListener('click',()=>{
+        const species=SPECIES_DATA.find(s=>s.name===item.dataset.name);
+        if(species){
+          input.value='';
+          results.style.display='none';
+          openSidebar(species);
+          setHighlight(species);
+        }
+      });
+    });
+  });
+  input.addEventListener('blur',()=>{setTimeout(()=>{results.style.display='none'},200)});
+  input.addEventListener('focus',()=>{if(input.value.trim().length>=2)input.dispatchEvent(new Event('input'))});
+})();
+
+// ── WIKIPEDIA IMAGE (robust multi-attempt fetcher) ────────────────
+const WIKI_TITLE_MAP={
+  'Red Panda':'Red_panda','Giant Panda':'Giant_panda','African Wild Dog':'African_wild_dog',
+  'African Elephant':'African_elephant','Asian Elephant':'Asian_elephant',
+  'Snow Leopard':'Snow_leopard','Bengal Tiger':'Bengal_tiger','Amur Leopard':'Amur_leopard',
+  'Javan Rhino':'Javan_rhinoceros','Black Rhino':'Black_rhinoceros',
+  'Mountain Gorilla':'Mountain_gorilla','Cross River Gorilla':'Cross_River_gorilla',
+  'Komodo Dragon':'Komodo_dragon','African Penguin':'African_penguin',
+  'Philippine Eagle':'Philippine_eagle','California Condor':'California_condor',
+  'Hawksbill Sea Turtle':'Hawksbill_sea_turtle','Green Sea Turtle':'Green_sea_turtle',
+  'Leatherback Sea Turtle':'Leatherback_sea_turtle','Loggerhead Sea Turtle':'Loggerhead_sea_turtle',
+  'Olive Ridley Sea Turtle':'Olive_ridley_sea_turtle','Flatback Sea Turtle':'Flatback_sea_turtle',
+  "Kemp's Ridley Sea Turtle":'Kemp%27s_ridley_sea_turtle',
+  'Great White Shark':'Great_white_shark','Whale Shark':'Whale_shark',
+  'Basking Shark':'Basking_shark','Spiny Dogfish':'Spiny_dogfish',
+  'Scalloped Hammerhead':'Scalloped_hammerhead','Smalltooth Sawfish':'Smalltooth_sawfish',
+  'Goliath Frog':'Goliath_frog','Golden Poison Frog':'Golden_poison_frog',
+  'Panamanian Golden Frog':'Panamanian_golden_frog','Tiger Salamander':'Tiger_salamander',
+  'Chinese Giant Salamander':'Chinese_giant_salamander',
+  'Scarlet Macaw':'Scarlet_macaw',"Spix's Macaw":'Spix%27s_macaw',
+  'Military Macaw':'Military_macaw','Bald Eagle':'Bald_eagle',
+  "Steller's Sea Eagle":"Steller%27s_sea_eagle",
+  'Red-crowned Crane':'Red-crowned_crane','Whooping Crane':'Whooping_crane',
+  'Grey Crowned Crane':'Grey_crowned_crane','Hooded Vulture':'Hooded_vulture',
+  'White-backed Vulture':'White-backed_vulture','White-headed Vulture':'White-headed_vulture',
+  'European Bison':'European_bison','Wood Bison':'Wood_bison',
+  'Galápagos Penguin':'Gal%C3%A1pagos_penguin','Erect-crested Penguin':'Erect-crested_penguin',
+  'Northern Bald Ibis':'Northern_bald_ibis','Southern Bald Ibis':'Southern_bald_ibis',
+  'Crested Ibis':'Crested_ibis','Ivory-billed Woodpecker':'Ivory-billed_woodpecker',
+  'Fin Whale':'Fin_whale','Sei Whale':'Sei_whale','Blue Whale':'Blue_whale',
+  'Polar Bear':'Polar_bear','West Indian Manatee':'West_Indian_manatee',
+  'Irrawaddy Dolphin':'Irrawaddy_dolphin','Florida Panther':'Florida_panther',
+  "Grevy's Zebra":"Grevy%27s_zebra","Baird's Tapir":"Baird%27s_tapir",
+  'Mountain Tapir':'Mountain_tapir','Indian Pangolin':'Indian_pangolin',
+  'Chinese Pangolin':'Chinese_pangolin','Sunda Pangolin':'Sunda_pangolin',
+  'Sumatran Tiger':'Sumatran_tiger','Malayan Tiger':'Malayan_tiger',
+  'Sumatran Orangutan':'Sumatran_orangutan','Tapanuli Orangutan':'Tapanuli_orangutan',
+  'Northern White Rhino':'Northern_white_rhinoceros',
+  'Greater One-horned Rhino':'Indian_rhinoceros',
+  'Yangtze Finless Porpoise':'Yangtze_finless_porpoise',
+  'North Pacific Right Whale':'North_Pacific_right_whale',
+  'Siamese Crocodile':'Siamese_crocodile','Philippine Crocodile':'Philippine_crocodile',
+  'American Alligator':'American_alligator',
+  'Indian Star Tortoise':'Indian_star_tortoise','African Spurred Tortoise':'African_spurred_tortoise',
+  'Ploughshare Tortoise':'Ploughshare_tortoise',
+  'Mauritius Kestrel':'Mauritius_kestrel',"Harris's Hawk":"Harris%27s_hawk",
+  'Grey-backed Hawk':'Grey-backed_hawk',
+  'South Island Takahē':'South_Island_takah%C4%93',
+  'Western Hoolock Gibbon':'Western_hoolock_gibbon','Pileated Gibbon':'Pileated_gibbon',
+  'Cao Vit Gibbon':'Cao_V%E1%BB%8Bt_gibbon','Hainan Gibbon':'Hainan_black_crested_gibbon',
+  'Natuna Island Surili':'Natuna_Island_surili',
+  'Borneo Pygmy Elephant':'Borneo_elephant','Hippopotamus':'Hippopotamus',
+  'Barking Frog':'Barking_frog','Neuse River Waterdog':'Neuse_River_waterdog',
+  'Chinese Salamander':'Hynobius_chinensis',
+  'Spanish Imperial Eagle':'Spanish_imperial_eagle',
+  'Chimpanzee':'Chimpanzee','Bonobo':'Bonobo','Okapi':'Okapi','Markhor':'Markhor',
+  'Gharial':'Gharial','Vaquita':'Vaquita','Saola':'Saola','Axolotl':'Axolotl',
+  'Kakapo':'K%C4%81k%C4%81p%C5%8D','Kagu':'Kagu',
+};
+
+async function tryWikiImage(title){
+  try{
+    const res=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${title}`);
+    if(!res.ok)return null;
+    const data=await res.json();
+    return data.originalimage?.source||data.thumbnail?.source||null;
+  }catch{return null}
+}
+
+
+async function fetchWikipediaImage(commonName, scientificName){
+  // 1. Check manual title map first
+  const mapped=WIKI_TITLE_MAP[commonName];
+  if(mapped){
+    const img=await tryWikiImage(mapped);
+    if(img)return img;
+  }
+  // 2. Try original common name as-is
+  const q1=encodeURIComponent(commonName.replace(/ /g,'_'));
+  let img=await tryWikiImage(q1);
+  if(img)return img;
+  // 3. Try sentence-case (only first letter of first word capitalized)
+  const sentenceCase=commonName.charAt(0).toUpperCase()+commonName.slice(1).toLowerCase();
+  const q2=encodeURIComponent(sentenceCase.replace(/ /g,'_'));
+  if(q2!==q1){img=await tryWikiImage(q2);if(img)return img}
+  // 4. Try scientific name
+  if(scientificName){
+    const q3=encodeURIComponent(scientificName.replace(/ /g,'_'));
+    img=await tryWikiImage(q3);
+    if(img)return img;
+  }
+  // 5. Placeholder SVG fallback
+  return makePlaceholderImage(commonName);
+}
+
+function makePlaceholderImage(name){
+  const hue=(name.charCodeAt(0)*37+name.charCodeAt(1)*53)%360;
+  const initials=name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl(${hue},40%,18%)"/>
+      <stop offset="100%" stop-color="hsl(${(hue+40)%360},50%,12%)"/>
+    </linearGradient></defs>
+    <rect width="400" height="300" fill="url(#g)"/>
+    <text x="200" y="140" text-anchor="middle" font-family="Inter,sans-serif" font-size="48" font-weight="700" fill="hsl(${hue},60%,65%)" opacity="0.7">${initials}</text>
+    <text x="200" y="175" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" fill="hsl(${hue},30%,55%)" opacity="0.6">Image unavailable</text>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+}
+
+// ── FEATURED IMAGE ────────────────────────────────────────────────
+async function loadFeaturedImage(){
+  const img=await fetchWikipediaImage('Bengal Tiger');
+  if(img)document.getElementById('featured-image').src=img;
+}
+loadFeaturedImage();
+
+function loadFeaturedSpecies(){
+  const bt=SPECIES_DATA.find(s=>s.name==='Panthera tigris tigris');
+  if(bt)openSidebar(bt);
+}
+
+// ── SIDEBAR PANELS ────────────────────────────────────────────────
+function showIntroPanel(){
+  document.getElementById('intro-panel').style.display='block';
+  document.getElementById('detail-panel').style.display='none';
+  // Resume globe spinning when going back
+  if(window._globe) window._globe.controls().autoRotate=true;
+}
+function showDetailPanel(){
+  document.getElementById('intro-panel').style.display='none';
+  document.getElementById('detail-panel').style.display='block';
+}
+
+// ── SPECIES SIDEBAR ───────────────────────────────────────────────
+async function openSidebar(species){
+  showDetailPanel();
+  showSkeletonState(species);
+  // Set search-based fallback link immediately so it always works
+  document.getElementById('iucn-link').href=
+    `https://www.iucnredlist.org/search?query=${encodeURIComponent(species.name)}&searchType=species`;
+  // Stop spinning and focus on the species
+  globe.controls().autoRotate=false;
+  globe.pointOfView({lat:jitteredLat(species),lng:jitteredLng(species),altitude:1.8},800);
+
+  if(window._cache[species.name]){
+    populateSidebar(species,window._cache[species.name]);
+    return;
+  }
+
+  try{
+    // Step 1: look up assessments by scientific name
+    // (SIS IDs in SPECIES_DATA are not reliable — name lookup is authoritative)
+    const lookup=await fetchAssessmentsByScientificName(species.name);
+
+    if(lookup.authError){
+      showSidebarError('API key rejected ('+lookup.authError+'). Check your token — get a free key at api.iucnredlist.org.');
+      return;
+    }
+    if(lookup.errorStatus){
+      showSidebarError('IUCN API error '+lookup.errorStatus+' looking up "'+species.name+'". Try again in a moment.');
+      return;
+    }
+    const assessments=lookup.assessments||[];
+
+    if(!assessments.length){
+      console.warn('[IUCN] No assessments found for', species.name, lookup.attempts);
+      const image=await fetchWikipediaImage(species.common, species.name);
+      const data={detail:{result:[]},habitats:{result:[]},threats:{result:[]},image};
+      window._cache[species.name]=data;
+      populateSidebar(species,data);
+      return;
+    }
+
+    // Step 2: pick latest global assessment, fetch full record + Wikipedia image in parallel
+    const globalAssessments=assessments.filter(a=>(a.scopes||[]).some(s=>s.code==='1'||s.description?.en==='Global'));
+    // Prefer non-NE assessments — IUCN sometimes inserts NE "blocker" records for subspecies
+    const nonNE=arr=>arr.filter(a=>(a.red_list_category?.code||'')!=='NE');
+    const pickFrom=arr=>(nonNE(arr).find(a=>a.latest)||nonNE(arr)[0])||arr.find(a=>a.latest)||arr[0];
+    const latest=pickFrom(globalAssessments.length?globalAssessments:assessments);
+    const assessmentId=latest.assessment_id||latest.id;
+    const realSisId=latest.sis_taxon_id||species.id;
+
+    if(lookup.matchedName && lookup.matchedName!==species.name){
+      console.info('[IUCN] Matched via synonym', species.name, '→', lookup.matchedName);
+    }
+
+    const [assessRes,image]=await Promise.all([
+      iucnFetch(`/api/iucn/assessment/${assessmentId}`).then(r=>r.json()),
+      fetchWikipediaImage(species.common, species.name),
+    ]);
+
+    console.log('[IUCN V4 raw]', JSON.parse(JSON.stringify(assessRes)));
+
+    // V4 narrative values may be plain strings OR {en:"..."} locale objects
+    const getText=v=>!v?'':typeof v==='string'?v:(v.en||v.value||Object.values(v)[0]||'');
+
+    const rec=assessRes.assessment||assessRes;
+    const narr=rec.narratives||rec.documentation||rec;
+    const detail={result:[{
+      rationale:getText(narr.rationale||narr.rational||narr.habitat||rec.rationale),
+      population:getText(narr.population||rec.population),
+    }]};
+
+    console.log('[IUCN V4 habitat[0]]', JSON.stringify(rec.habitats?.[0]));
+    console.log('[IUCN V4 threat[0]]', JSON.stringify(rec.threats?.[0]));
+
+    // V4: flat entries, description is {en: "..."} not a string
+    let habitats={result:(rec.habitats||[]).map(h=>({
+      habitat: h.description?.en || h.name || habitatName(h.code)
+    }))};
+    let threats={result:(rec.threats||[]).map(t=>({
+      title: t.description?.en || t.title || t.name || threatName(t.code)
+    }))};
+
+    // Subspecies fallback: if habitats+threats are empty and name has ≥3 parts,
+    // retry with just the binomial (e.g. "Panthera pardus" for "Panthera pardus orientalis")
+    const nameParts=species.name.trim().split(/\s+/);
+    if(!habitats.result.length&&!threats.result.length&&nameParts.length>=3){
+      const binomial=nameParts.slice(0,2).join(' ');
+      console.info('[IUCN] Subspecies had no habitat/threat data — retrying as species:', binomial);
+      try{
+        const binomialLookup=await fetchAssessmentsByScientificName(binomial);
+        const binomialAssessments=binomialLookup.assessments||[];
+        const binGlobal=binomialAssessments.filter(a=>(a.scopes||[]).some(s=>s.code==='1'||s.description?.en==='Global'));
+        const binPool=binGlobal.length?binGlobal:binomialAssessments;
+        const binLatest=(nonNE(binPool).find(a=>a.latest)||nonNE(binPool)[0])||binPool.find(a=>a.latest)||binPool[0];
+        if(binLatest){
+          const binAssessRes=await iucnFetch(`/api/iucn/assessment/${binLatest.assessment_id||binLatest.id}`).then(r=>r.json());
+          const binRec=binAssessRes.assessment||binAssessRes;
+          if((binRec.habitats||[]).length){
+            habitats={result:binRec.habitats.map(h=>({habitat:h.description?.en||h.name||habitatName(h.code)}))};
+          }
+          if((binRec.threats||[]).length){
+            threats={result:binRec.threats.map(t=>({title:t.description?.en||t.title||t.name||threatName(t.code)}))};
+          }
+        }
+      }catch(e){console.warn('[IUCN] Subspecies binomial fallback failed:',e)}
+    }
+
+    const data={detail,habitats,threats,image,sisId:realSisId,assessmentId};
+    window._cache[species.name]=data;
+    populateSidebar(species,data);
+
+  }catch(err){
+    window._lastSpecies=species;
+    const retryHtml='<br/><button onclick="openSidebar(window._lastSpecies)" style="margin-top:8px;padding:6px 12px;background:#FF5252;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">↻ Retry</button>';
+    if(err instanceof TypeError){
+      showSidebarError('Network error — proxy attempts failed. Check your internet connection.'+retryHtml);
+    }else{
+      showSidebarError('Error: '+err.message+retryHtml);
+    }
+  }
+}
+
+function showSkeletonState(species){
+  document.getElementById('species-common-name').textContent=species.common;
+  document.getElementById('species-scientific-name').textContent=species.name;
+  const badge=document.getElementById('species-status-badge');
+  badge.textContent=STATUS_LABELS[species.status];
+  badge.className=`status-badge status-${species.status.toLowerCase()}`;
+  const nt=document.getElementById('narrative-text');
+  nt.classList.add('skeleton-text');
+  resetExpandable('narrative-text');
+  resetExpandable('population-text');
+  nt.textContent='Loading...';
+  document.getElementById('population-text').innerHTML='';
+  document.getElementById('habitats-list').innerHTML='';
+  document.getElementById('threats-list').innerHTML='';
+  document.getElementById('countries-text').textContent=`${species.lat.toFixed(1)}°, ${species.lng.toFixed(1)}°`;
+  document.getElementById('species-image').style.display='none';
+  document.getElementById('species-image-skeleton').style.display='block';
+}
+
+function toggleExpand(id,btn){
+  const el=document.getElementById(id);
+  const expanded=el.classList.toggle('expanded');
+  el.classList.toggle('collapsed',!expanded);
+  btn.textContent=expanded?'See less ▴':'See more ▾';
+}
+
+function resetExpandable(id){
+  const el=document.getElementById(id);
+  el.classList.add('collapsed');
+  el.classList.remove('expanded');
+  const btn=el.nextElementSibling;
+  if(btn)btn.textContent='See more ▾';
+}
+
+function checkOverflow(id){
+  const el=document.getElementById(id);
+  const btn=el.nextElementSibling;
+  if(!btn)return;
+  // show button only if content is actually taller than the clamped height
+  requestAnimationFrame(()=>{
+    el.classList.add('collapsed');
+    const clamped=el.offsetHeight;
+    el.classList.remove('collapsed');
+    const full=el.scrollHeight;
+    el.classList.add('collapsed');
+    btn.classList.toggle('visible',full>clamped+4);
+  });
+}
+
+function populateSidebar(species,data){
+  const result=data.detail?.result?.[0];
+
+  document.getElementById('species-image-skeleton').style.display='none';
+  const imgEl=document.getElementById('species-image');
+  if(data.image){imgEl.src=data.image;imgEl.style.display='block'}
+  else{imgEl.style.display='none'}
+
+  const nt=document.getElementById('narrative-text');
+  nt.classList.remove('skeleton-text');
+  resetExpandable('narrative-text');
+  resetExpandable('population-text');
+  nt.innerHTML=result?.rationale||result?.conservation_actions||'No narrative available.';
+  document.getElementById('population-text').innerHTML=result?.population||'Population data not available.';
+  checkOverflow('narrative-text');
+  checkOverflow('population-text');
+
+  document.getElementById('habitats-list').innerHTML=
+    (data.habitats?.result||[]).slice(0,5).map(h=>`<li>${h.habitat}</li>`).join('')||'<li>No data</li>';
+
+  document.getElementById('threats-list').innerHTML=
+    (data.threats?.result||[]).slice(0,3).map(t=>`<li>${t.title}</li>`).join('')||'<li>No data</li>';
+
+  document.getElementById('countries-text').textContent=
+    `Range centroid: ${species.lat.toFixed(1)}°, ${species.lng.toFixed(1)}°`;
+
+  if(data.sisId && data.assessmentId){
+    document.getElementById('iucn-link').href=
+      `https://www.iucnredlist.org/species/${data.sisId}/${data.assessmentId}`;
+  }
+  // else: fallback search URL already set in openSidebar
+}
+
+function showSidebarError(msg){
+  document.getElementById('species-image-skeleton').style.display='none';
+  const nt=document.getElementById('narrative-text');
+  nt.classList.remove('skeleton-text');
+  nt.innerHTML=`<div style="background:rgba(226,75,74,0.15);border:1px solid rgba(226,75,74,0.4);border-radius:8px;padding:12px;font-size:12px;line-height:1.6;color:#f87171">${msg}</div>`;
+  document.getElementById('population-text').textContent='';
+  document.getElementById('habitats-list').innerHTML='';
+  document.getElementById('threats-list').innerHTML='';
+}
+
+function openImgOverlay(src){
+  if(!src)return;
+  const ov=document.getElementById('img-overlay');
+  document.getElementById('img-overlay-img').src=src;
+  ov.classList.add('open');
+}
+function closeImgOverlay(){
+  const ov=document.getElementById('img-overlay');
+  ov.classList.remove('open');
+  document.getElementById('img-overlay-img').src='';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeImgOverlay()});
+</script>
+<div id="img-overlay" onclick="closeImgOverlay()">
+  <span id="img-overlay-close" onclick="closeImgOverlay()">✕</span>
+  <img id="img-overlay-img" src="" alt="" onclick="event.stopPropagation()"/>
+</div>
+</body>
+</html>

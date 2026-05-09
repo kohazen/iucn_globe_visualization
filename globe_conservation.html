@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IUCN Globe — Conservation Score</title>
+<script src="https://unpkg.com/globe.gl"></script>
+<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#000;--text-primary:#e8e8e0;--text-secondary:#9c9a92;
+  --sidebar-bg:rgba(18,18,20,0.88);--sidebar-border:rgba(255,255,255,0.12);
+  --nav-bg:rgba(0,0,0,0.75);--card-bg:rgba(255,255,255,0.07);
+}
+:root.dark{
+  --bg:#000;--text-primary:#e8e8e0;--text-secondary:#9c9a92;
+  --sidebar-bg:rgba(18,18,20,0.88);--sidebar-border:rgba(255,255,255,0.12);
+  --nav-bg:rgba(0,0,0,0.75);--card-bg:rgba(255,255,255,0.07);
+}
+body{background:#000;color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+#top-nav{
+  position:fixed;top:0;left:0;right:0;height:48px;z-index:100;
+  background:var(--nav-bg);border-bottom:1px solid var(--sidebar-border);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  display:flex;align-items:center;padding:0 16px;gap:16px;
+}
+.nav-brand{font-weight:700;font-size:15px;color:var(--text-primary);white-space:nowrap}
+.nav-links{display:flex;gap:4px;flex:1}
+.nav-link{
+  padding:6px 12px;border-radius:6px;text-decoration:none;
+  font-size:13px;font-weight:500;color:var(--text-secondary);
+  transition:background 0.15s,color 0.15s;
+}
+.nav-link:hover{background:var(--card-bg);color:var(--text-primary)}
+.nav-link.active{background:var(--card-bg);color:var(--text-primary)}
+#theme-toggle{
+  background:none;border:1px solid var(--border);border-radius:6px;
+  padding:2px 6px;cursor:pointer;font-size:18px;line-height:1;
+}
+#globe-container{
+  position:fixed;top:48px;left:0;right:0;bottom:0;
+}
+#legend{
+  position:fixed;bottom:24px;right:24px;z-index:10;
+  background:var(--sidebar-bg);border:1px solid var(--sidebar-border);
+  border-radius:10px;padding:12px 16px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.12);
+}
+.legend-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-secondary);margin-bottom:8px}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);margin-bottom:5px}
+.legend-item:last-child{margin-bottom:0}
+.legend-swatch{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+
+/* Floating info card */
+#info-card{
+  position:fixed;bottom:24px;left:24px;z-index:20;
+  width:320px;max-height:420px;overflow-y:auto;
+  background:var(--sidebar-bg);border:1px solid var(--sidebar-border);
+  border-radius:12px;padding:18px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.18);
+  display:none;
+}
+#info-card-close{
+  position:absolute;top:12px;right:12px;
+  background:none;border:none;cursor:pointer;
+  color:var(--text-secondary);font-size:18px;line-height:1;
+  padding:2px 6px;border-radius:4px;
+}
+#info-card-close:hover{color:var(--text-primary);background:var(--card-bg)}
+#info-card h2{font-size:17px;font-weight:700;margin-bottom:6px;padding-right:28px}
+.score-band{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:10px}
+.band-excellent{background:#d0f0e8;color:#0d5c44}
+.band-good{background:#eaf5d4;color:#3d6e10}
+.band-moderate{background:#fef3e2;color:#7c5100}
+.band-poor{background:#fde8e8;color:#8b1a1a}
+.band-critical{background:#f5d0d0;color:#5c0a0a}
+.score-bar-wrap{background:var(--card-bg);border-radius:6px;height:10px;overflow:hidden;margin-bottom:10px}
+.score-bar{height:100%;border-radius:6px;transition:width 0.5s}
+.rank-text{font-size:12px;color:var(--text-secondary);margin-bottom:12px}
+.card-section{border-top:1px solid var(--sidebar-border);padding-top:10px;margin-top:10px}
+.card-section h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-secondary);margin-bottom:8px}
+.species-chip{display:inline-block;margin:2px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.chip-cr{background:#fde8e8;color:#c0392b}
+.chip-en{background:#fef3e2;color:#d35400}
+.chip-vu{background:#e8f0fe;color:#1a56db}
+.card-link{
+  display:block;margin-top:12px;padding:8px;text-align:center;
+  background:var(--card-bg);border-radius:8px;
+  color:var(--text-secondary);font-size:12px;text-decoration:none;
+  border:1px solid var(--sidebar-border);
+}
+.card-link:hover{color:var(--text-primary)}
+</style>
+</head>
+<body>
+<nav id="top-nav">
+  <span class="nav-brand">🌍 IUCN Globe</span>
+  <div class="nav-links">
+    <a href="globe_species.html" class="nav-link" data-view="species">🗺️ Species Map</a>
+    <a href="globe_conservation.html" class="nav-link active" data-view="conservation">🛡️ Conservation Score</a>
+    <a href="globe_forest.html" class="nav-link" data-view="forest">🌳 Forest Cover</a>
+    <a href="globe_dashboard.html" class="nav-link" data-view="dashboard">📊 Dashboard</a>
+    <a href="globe_species_list.html" class="nav-link" data-view="list">📋 Species List</a>
+  </div>
+  <button id="theme-toggle" aria-label="Toggle dark/light mode">🌙</button>
+</nav>
+
+<div id="globe-container"></div>
+
+<div id="legend">
+  <div class="legend-title">NCI 2024</div>
+  <div class="legend-item"><span class="legend-swatch" style="background:#1D9E75"></span><span>80–100 Excellent</span></div>
+  <div class="legend-item"><span class="legend-swatch" style="background:#97C459"></span><span>60–80 Good</span></div>
+  <div class="legend-item"><span class="legend-swatch" style="background:#FAC775"></span><span>40–60 Moderate</span></div>
+  <div class="legend-item"><span class="legend-swatch" style="background:#E24B4A"></span><span>20–40 Poor</span></div>
+  <div class="legend-item"><span class="legend-swatch" style="background:#A32D2D"></span><span>0–20 Critical</span></div>
+  <div class="legend-item"><span class="legend-swatch" style="background:#D3D1C7;border:1px solid #bbb"></span><span>— No data</span></div>
+</div>
+
+<div id="info-card">
+  <button id="info-card-close" onclick="document.getElementById('info-card').style.display='none'">×</button>
+  <div id="info-card-body"></div>
+</div>
+
+<script>
+// ── SPECIES DATA ──────────────────────────────────────────────────
+const SPECIES_DATA = [
+  {id:15966,name:"Panthera pardus orientalis",common:"Amur Leopard",status:"CR",taxon:"MAMMALIA",lat:43.5,lng:134.0},
+  {id:39484,name:"Rhinoceros sondaicus",common:"Javan Rhino",status:"CR",taxon:"MAMMALIA",lat:-7.5,lng:106.5},
+  {id:39780,name:"Pongo abelii",common:"Sumatran Orangutan",status:"CR",taxon:"MAMMALIA",lat:3.5,lng:97.5},
+  {id:9404,name:"Gorilla gorilla diehli",common:"Cross River Gorilla",status:"CR",taxon:"MAMMALIA",lat:6.5,lng:9.5},
+  {id:17972,name:"Phocoena sinus",common:"Vaquita",status:"CR",taxon:"MAMMALIA",lat:30.8,lng:-114.5},
+  {id:15966,name:"Pseudoryx nghetinhensis",common:"Saola",status:"CR",taxon:"MAMMALIA",lat:17.0,lng:105.5},
+  {id:41754,name:"Neophocaena asiaeorientalis asiaeorientalis",common:"Yangtze Finless Porpoise",status:"CR",taxon:"MAMMALIA",lat:30.5,lng:114.0},
+  {id:15966,name:"Panthera tigris sumatrae",common:"Sumatran Tiger",status:"CR",taxon:"MAMMALIA",lat:0.5,lng:101.5},
+  {id:4085,name:"Diceros bicornis",common:"Black Rhino",status:"CR",taxon:"MAMMALIA",lat:-3.0,lng:35.0},
+  {id:9404,name:"Gorilla beringei graueri",common:"Grauer's Gorilla",status:"CR",taxon:"MAMMALIA",lat:-1.5,lng:28.5},
+  {id:17968,name:"Lipotes vexillifer",common:"Baiji",status:"CR",taxon:"MAMMALIA",lat:31.0,lng:114.5},
+  {id:15951,name:"Panthera tigris jacksoni",common:"Malayan Tiger",status:"CR",taxon:"MAMMALIA",lat:4.5,lng:103.0},
+  {id:12643,name:"Balaenoptera musculus",common:"Blue Whale",status:"CR",taxon:"MAMMALIA",lat:-40.0,lng:-20.0},
+  {id:18468,name:"Eubalaena japonica",common:"North Pacific Right Whale",status:"CR",taxon:"MAMMALIA",lat:52.0,lng:170.0},
+  {id:22685548,name:"Cyanopsitta spixii",common:"Spix's Macaw",status:"CR",taxon:"AVES",lat:-9.5,lng:-41.0},
+  {id:22685245,name:"Strigops habroptilus",common:"Kakapo",status:"CR",taxon:"AVES",lat:-46.0,lng:168.0},
+  {id:22696044,name:"Pithecophaga jefferyi",common:"Philippine Eagle",status:"CR",taxon:"AVES",lat:7.5,lng:126.0},
+  {id:22697814,name:"Gymnogyps californianus",common:"California Condor",status:"CR",taxon:"AVES",lat:35.5,lng:-119.0},
+  {id:22692533,name:"Rhynochetos jubatus",common:"Kagu",status:"CR",taxon:"AVES",lat:-21.5,lng:165.5},
+  {id:22733033,name:"Nipponia nippon",common:"Crested Ibis",status:"CR",taxon:"AVES",lat:33.5,lng:107.5},
+  {id:22697752,name:"Geronticus eremita",common:"Northern Bald Ibis",status:"CR",taxon:"AVES",lat:30.5,lng:-9.0},
+  {id:9244,name:"Gavialis gangeticus",common:"Gharial",status:"CR",taxon:"REPTILIA",lat:27.0,lng:83.0},
+  {id:9818,name:"Astrochelys yniphora",common:"Ploughshare Tortoise",status:"CR",taxon:"REPTILIA",lat:-16.0,lng:46.5},
+  {id:9741,name:"Eretmochelys imbricata",common:"Hawksbill Sea Turtle",status:"CR",taxon:"REPTILIA",lat:15.0,lng:-60.0},
+  {id:9764,name:"Chelonia mydas",common:"Green Sea Turtle",status:"CR",taxon:"REPTILIA",lat:5.0,lng:-155.0},
+  {id:10272,name:"Dermochelys coriacea",common:"Leatherback Sea Turtle",status:"CR",taxon:"REPTILIA",lat:10.0,lng:-61.0},
+  {id:57592,name:"Atelopus zeteki",common:"Panamanian Golden Frog",status:"CR",taxon:"AMPHIBIA",lat:8.5,lng:-80.5},
+  {id:57430,name:"Andrias davidianus",common:"Chinese Giant Salamander",status:"CR",taxon:"AMPHIBIA",lat:29.0,lng:109.0},
+  {id:59643,name:"Ambystoma mexicanum",common:"Axolotl",status:"CR",taxon:"AMPHIBIA",lat:19.5,lng:-99.0},
+  {id:39385,name:"Carcharodon carcharias",common:"Great White Shark",status:"CR",taxon:"CHONDRICHTHYES",lat:-35.0,lng:18.0},
+  {id:4089,name:"Ursus maritimus",common:"Polar Bear",status:"CR",taxon:"MAMMALIA",lat:75.0,lng:-20.0},
+  {id:3786,name:"Ailuropoda melanoleuca",common:"Giant Panda",status:"CR",taxon:"MAMMALIA",lat:30.5,lng:103.0},
+  {id:41776,name:"Pongo tapanuliensis",common:"Tapanuli Orangutan",status:"CR",taxon:"MAMMALIA",lat:1.8,lng:99.2},
+  {id:3144,name:"Rhinoceros unicornis",common:"Greater One-horned Rhino",status:"CR",taxon:"MAMMALIA",lat:26.5,lng:87.5},
+  {id:7140,name:"Manis pentadactyla",common:"Chinese Pangolin",status:"CR",taxon:"MAMMALIA",lat:24.0,lng:113.0},
+  {id:22732583,name:"Spheniscus demersus",common:"African Penguin",status:"CR",taxon:"AVES",lat:-34.0,lng:18.5},
+  {id:22692751,name:"Balearica regulorum",common:"Grey Crowned Crane",status:"CR",taxon:"AVES",lat:-1.0,lng:33.5},
+  {id:9877,name:"Crocodylus siamensis",common:"Siamese Crocodile",status:"CR",taxon:"REPTILIA",lat:13.0,lng:103.0},
+  {id:7140,name:"Manis javanica",common:"Sunda Pangolin",status:"CR",taxon:"MAMMALIA",lat:1.5,lng:110.0},
+  {id:5554,name:"Bison bison athabascae",common:"Wood Bison",status:"CR",taxon:"MAMMALIA",lat:60.0,lng:-116.0},
+  {id:22694537,name:"Falco punctatus",common:"Mauritius Kestrel",status:"CR",taxon:"AVES",lat:-20.3,lng:57.5},
+  // EN
+  {id:9672,name:"Panthera tigris tigris",common:"Bengal Tiger",status:"EN",taxon:"MAMMALIA",lat:23.5,lng:82.0},
+  {id:22732,name:"Panthera uncia",common:"Snow Leopard",status:"EN",taxon:"MAMMALIA",lat:35.0,lng:83.0},
+  {id:15951,name:"Panthera leo",common:"African Lion",status:"EN",taxon:"MAMMALIA",lat:5.0,lng:25.0},
+  {id:7140,name:"Elephas maximus borneensis",common:"Borneo Pygmy Elephant",status:"EN",taxon:"MAMMALIA",lat:5.5,lng:117.5},
+  {id:12436,name:"Lycaon pictus",common:"African Wild Dog",status:"EN",taxon:"MAMMALIA",lat:-10.0,lng:32.0},
+  {id:7951,name:"Equus grevyi",common:"Grevy's Zebra",status:"EN",taxon:"MAMMALIA",lat:3.0,lng:38.5},
+  {id:190,name:"Acinonyx jubatus",common:"Cheetah",status:"EN",taxon:"MAMMALIA",lat:8.0,lng:30.0},
+  {id:41754,name:"Orcaella brevirostris",common:"Irrawaddy Dolphin",status:"EN",taxon:"MAMMALIA",lat:16.5,lng:96.5},
+  {id:9404,name:"Gorilla beringei beringei",common:"Mountain Gorilla",status:"EN",taxon:"MAMMALIA",lat:-1.3,lng:29.5},
+  {id:9503,name:"Pan troglodytes",common:"Chimpanzee",status:"EN",taxon:"MAMMALIA",lat:5.0,lng:18.0},
+  {id:9504,name:"Pan paniscus",common:"Bonobo",status:"EN",taxon:"MAMMALIA",lat:-2.0,lng:24.0},
+  {id:14163,name:"Okapia johnstoni",common:"Okapi",status:"EN",taxon:"MAMMALIA",lat:1.5,lng:28.0},
+  {id:4139,name:"Tapirus bairdii",common:"Baird's Tapir",status:"EN",taxon:"MAMMALIA",lat:10.0,lng:-83.5},
+  {id:18468,name:"Balaenoptera physalus",common:"Fin Whale",status:"EN",taxon:"MAMMALIA",lat:50.0,lng:-30.0},
+  {id:2480,name:"Trichechus manatus",common:"West Indian Manatee",status:"EN",taxon:"MAMMALIA",lat:18.0,lng:-88.0},
+  {id:5548,name:"Bison bonasus",common:"European Bison",status:"EN",taxon:"MAMMALIA",lat:52.5,lng:23.5},
+  {id:8972,name:"Capra falconeri",common:"Markhor",status:"EN",taxon:"MAMMALIA",lat:36.0,lng:72.0},
+  {id:22697814,name:"Spheniscus mendiculus",common:"Galápagos Penguin",status:"EN",taxon:"AVES",lat:-0.5,lng:-91.0},
+  {id:22682717,name:"Grus japonensis",common:"Red-crowned Crane",status:"EN",taxon:"AVES",lat:44.0,lng:130.0},
+  {id:22692533,name:"Grus americana",common:"Whooping Crane",status:"EN",taxon:"AVES",lat:56.0,lng:-108.0},
+  {id:22728339,name:"Aquila adalberti",common:"Spanish Imperial Eagle",status:"EN",taxon:"AVES",lat:39.0,lng:-6.0},
+  {id:22732583,name:"Spheniscus humboldti",common:"Humboldt Penguin",status:"EN",taxon:"AVES",lat:-25.0,lng:-70.5},
+  {id:22694428,name:"Ara glaucogularis",common:"Blue-throated Macaw",status:"EN",taxon:"AVES",lat:-14.5,lng:-65.5},
+  {id:22697364,name:"Haliaeetus albicilla",common:"White-tailed Eagle",status:"EN",taxon:"AVES",lat:55.0,lng:15.0},
+  {id:46398,name:"Crocodylus niloticus",common:"Nile Crocodile",status:"EN",taxon:"REPTILIA",lat:-5.0,lng:32.0},
+  {id:22687,name:"Varanus komodoensis",common:"Komodo Dragon",status:"EN",taxon:"REPTILIA",lat:-8.5,lng:119.5},
+  {id:9241,name:"Alligator sinensis",common:"Chinese Alligator",status:"EN",taxon:"REPTILIA",lat:30.5,lng:118.5},
+  {id:46400,name:"Crocodylus acutus",common:"American Crocodile",status:"EN",taxon:"REPTILIA",lat:16.0,lng:-86.5},
+  {id:58786,name:"Conraua goliath",common:"Goliath Frog",status:"EN",taxon:"AMPHIBIA",lat:3.5,lng:10.5},
+  {id:57430,name:"Cryptobranchus alleganiensis",common:"Hellbender",status:"EN",taxon:"AMPHIBIA",lat:37.0,lng:-82.0},
+  {id:39385,name:"Rhincodon typus",common:"Whale Shark",status:"EN",taxon:"CHONDRICHTHYES",lat:5.0,lng:72.0},
+  {id:8649,name:"Camelus bactrianus",common:"Bactrian Camel",status:"EN",taxon:"MAMMALIA",lat:45.0,lng:92.0},
+  {id:21031,name:"Saiga tatarica",common:"Saiga Antelope",status:"EN",taxon:"MAMMALIA",lat:48.5,lng:62.0},
+  {id:11516,name:"Addax nasomaculatus",common:"Addax",status:"EN",taxon:"MAMMALIA",lat:20.5,lng:14.5},
+  {id:6557,name:"Equus africanus",common:"African Wild Ass",status:"EN",taxon:"MAMMALIA",lat:12.0,lng:41.0},
+  {id:14931,name:"Delphinapterus leucas",common:"Beluga Whale",status:"EN",taxon:"MAMMALIA",lat:62.0,lng:-75.0},
+  {id:22698209,name:"Bubo blakistoni",common:"Blakiston's Fish Owl",status:"EN",taxon:"AVES",lat:48.0,lng:136.0},
+  {id:22697907,name:"Gyps bengalensis",common:"White-rumped Vulture",status:"EN",taxon:"AVES",lat:24.0,lng:84.0},
+  {id:21389,name:"Tapirus pinchaque",common:"Mountain Tapir",status:"EN",taxon:"MAMMALIA",lat:-1.0,lng:-77.5},
+  {id:9943,name:"Hoolock hoolock",common:"Western Hoolock Gibbon",status:"EN",taxon:"MAMMALIA",lat:25.0,lng:92.5},
+  // VU
+  {id:22823,name:"Ursus maritimus",common:"Polar Bear",status:"VU",taxon:"MAMMALIA",lat:74.0,lng:15.0},
+  {id:10103,name:"Hippopotamus amphibius",common:"Hippopotamus",status:"VU",taxon:"MAMMALIA",lat:-5.0,lng:28.0},
+  {id:7140,name:"Elephas maximus",common:"Asian Elephant",status:"VU",taxon:"MAMMALIA",lat:11.0,lng:80.0},
+  {id:12462,name:"Macaca silenus",common:"Lion-tailed Macaque",status:"VU",taxon:"MAMMALIA",lat:10.5,lng:76.5},
+  {id:2172,name:"Dugong dugon",common:"Dugong",status:"VU",taxon:"MAMMALIA",lat:12.0,lng:50.5},
+  {id:15951,name:"Panthera onca",common:"Jaguar",status:"VU",taxon:"MAMMALIA",lat:5.0,lng:-73.0},
+  {id:4107,name:"Ursus thibetanus",common:"Asiatic Black Bear",status:"VU",taxon:"MAMMALIA",lat:30.0,lng:101.0},
+  {id:18703,name:"Zalophus wollebaeki",common:"Galápagos Sea Lion",status:"VU",taxon:"MAMMALIA",lat:-0.9,lng:-91.5},
+  {id:3746,name:"Ailurus fulgens",common:"Red Panda",status:"VU",taxon:"MAMMALIA",lat:27.5,lng:88.5},
+  {id:2548,name:"Tapirus terrestris",common:"Lowland Tapir",status:"VU",taxon:"MAMMALIA",lat:-5.0,lng:-62.0},
+  {id:3055,name:"Loxodonta africana",common:"African Elephant",status:"VU",taxon:"MAMMALIA",lat:-3.0,lng:26.0},
+  {id:2912,name:"Alces alces",common:"Moose",status:"VU",taxon:"MAMMALIA",lat:60.0,lng:55.0},
+  {id:18723,name:"Monachus schauinslandi",common:"Hawaiian Monk Seal",status:"VU",taxon:"MAMMALIA",lat:24.0,lng:-167.0},
+  {id:22697814,name:"Spheniscus magellanicus",common:"Magellanic Penguin",status:"VU",taxon:"AVES",lat:-52.0,lng:-70.0},
+  {id:22694428,name:"Ara macao",common:"Scarlet Macaw",status:"VU",taxon:"AVES",lat:10.0,lng:-84.0},
+  {id:22692533,name:"Grus leucogeranus",common:"Siberian Crane",status:"VU",taxon:"AVES",lat:53.0,lng:88.0},
+  {id:22692720,name:"Phoenicopterus roseus",common:"Greater Flamingo",status:"VU",taxon:"AVES",lat:35.0,lng:4.0},
+  {id:22697752,name:"Pelecanus crispus",common:"Dalmatian Pelican",status:"VU",taxon:"AVES",lat:42.0,lng:23.0},
+  {id:22697364,name:"Haliaeetus pelagicus",common:"Steller's Sea Eagle",status:"VU",taxon:"AVES",lat:55.0,lng:149.0},
+  {id:22694488,name:"Anodorhynchus hyacinthinus",common:"Hyacinth Macaw",status:"VU",taxon:"AVES",lat:-15.0,lng:-55.0},
+  {id:22728339,name:"Aquila clanga",common:"Greater Spotted Eagle",status:"VU",taxon:"AVES",lat:53.0,lng:42.0},
+  {id:46585,name:"Crocodylus johnstoni",common:"Freshwater Crocodile",status:"VU",taxon:"REPTILIA",lat:-18.0,lng:131.0},
+  {id:9241,name:"Alligator mississippiensis",common:"American Alligator",status:"VU",taxon:"REPTILIA",lat:30.0,lng:-89.0},
+  {id:22687,name:"Varanus salvator",common:"Water Monitor",status:"VU",taxon:"REPTILIA",lat:3.0,lng:102.0},
+  {id:9814,name:"Testudo graeca",common:"Spur-thighed Tortoise",status:"VU",taxon:"REPTILIA",lat:38.0,lng:35.0},
+  {id:54490,name:"Ambystoma tigrinum",common:"Tiger Salamander",status:"VU",taxon:"AMPHIBIA",lat:40.0,lng:-97.0},
+  {id:39385,name:"Sphyrna lewini",common:"Scalloped Hammerhead",status:"VU",taxon:"CHONDRICHTHYES",lat:8.0,lng:-80.0},
+  {id:11516,name:"Gazella dorcas",common:"Dorcas Gazelle",status:"VU",taxon:"MAMMALIA",lat:27.0,lng:10.0},
+  {id:6557,name:"Equus quagga",common:"Plains Zebra",status:"VU",taxon:"MAMMALIA",lat:-10.0,lng:35.0},
+  {id:4089,name:"Ursus arctos",common:"Brown Bear",status:"VU",taxon:"MAMMALIA",lat:50.0,lng:85.0},
+  {id:4100,name:"Panthera pardus",common:"Leopard",status:"VU",taxon:"MAMMALIA",lat:0.0,lng:28.0},
+  {id:9918,name:"Hylobates agilis",common:"Agile Gibbon",status:"VU",taxon:"MAMMALIA",lat:2.0,lng:112.0},
+  {id:9943,name:"Hylobates lar",common:"White-handed Gibbon",status:"VU",taxon:"MAMMALIA",lat:15.0,lng:99.0},
+  {id:22733516,name:"Gyps rueppelli",common:"Rüppell's Griffon",status:"VU",taxon:"AVES",lat:12.0,lng:28.0},
+  {id:22697656,name:"Aegypius monachus",common:"Cinereous Vulture",status:"VU",taxon:"AVES",lat:40.0,lng:75.0},
+  {id:22732583,name:"Eudyptes chrysolophus",common:"Macaroni Penguin",status:"VU",taxon:"AVES",lat:-54.0,lng:-37.0},
+  {id:22692533,name:"Antigone antigone",common:"Sarus Crane",status:"VU",taxon:"AVES",lat:25.0,lng:82.0},
+  {id:22697340,name:"Haliaeetus vociferoides",common:"Madagascar Fish Eagle",status:"VU",taxon:"AVES",lat:-16.0,lng:46.0},
+];
+
+// ── NCI SCORES 2024 ───────────────────────────────────────────────
+const NCI_SCORES = {
+  "LUX":91.2,"FIN":89.4,"NOR":88.7,"CHE":87.9,"CRI":86.1,"NZL":85.3,
+  "SWE":84.6,"DNK":83.8,"AUT":82.4,"DEU":81.7,"GBR":81.2,"NLD":80.8,
+  "BEL":80.1,"ISL":79.8,"IRL":79.4,"FRA":78.9,"ESP":78.3,"PRT":77.8,
+  "ITA":77.2,"CAN":76.9,"AUS":76.4,"JPN":75.8,"KOR":75.3,"SGP":74.9,
+  "HKG":74.3,"TWN":73.8,"USA":73.2,"CZE":72.8,"SVK":72.3,"HUN":71.9,
+  "POL":71.4,"SVN":71.0,"HRV":70.6,"EST":70.2,"LVA":69.8,"LTU":69.4,
+  "ROU":68.9,"BGR":68.5,"GRC":68.1,"CYP":67.7,"MLT":67.3,"URY":66.9,
+  "CHL":66.4,"ARG":65.9,"BRA":65.4,"MEX":64.9,"COL":64.3,"PER":63.8,
+  "ECU":63.2,"BOL":62.7,"PRY":62.2,"VEN":61.6,"PAN":61.1,"GTM":60.0,
+  "BLZ":59.5,"HND":59.0,"NIC":58.5,"SLV":58.0,"CUB":57.4,"JAM":56.9,
+  "TTO":56.4,"DOM":55.8,"HTI":55.3,"ZAF":63.5,"NAM":62.8,"BWA":62.2,
+  "ZWE":61.5,"MOZ":60.9,"ZMB":60.3,"MWI":59.7,"TZA":59.1,"KEN":58.5,
+  "UGA":57.9,"RWA":57.3,"BDI":56.7,"ETH":56.1,"SOM":55.5,"ERI":54.9,
+  "DJI":54.2,"SDN":53.6,"SSD":53.0,"CAF":52.4,"CMR":51.8,"NGA":51.2,
+  "GHA":50.6,"CIV":50.0,"LBR":49.4,"SLE":48.8,"GIN":48.2,"SEN":47.6,
+  "GMB":47.0,"GNB":46.4,"CPV":67.1,"MRT":45.8,"MLI":45.2,"BFA":44.6,
+  "NER":44.0,"TCD":43.4,"EGY":52.7,"LBY":48.3,"TUN":55.4,"DZA":51.9,
+  "MAR":57.1,"MUS":71.2,"MDG":58.7,"COM":53.1,"SYC":72.4,"COG":54.3,
+  "COD":53.7,"GAB":60.1,"GNQ":49.8,"STP":55.6,"AGO":56.8,"FJI":64.7,
+  "PNG":58.3,"SLB":57.6,"VUT":60.8,"WSM":59.4,"TON":58.8,"KIR":38.6,
+  "TUV":55.2,"NRU":51.4,"PLW":66.3,"FSM":44.1,"MHL":52.7,"IDN":55.8,
+  "MYS":58.3,"PHL":52.4,"THA":60.7,"VNM":56.2,"KHM":54.9,"LAO":55.5,
+  "MMR":53.8,"BGD":49.7,"IND":45.5,"PAK":48.2,"LKA":58.9,"NPL":57.3,
+  "BTN":68.4,"MDV":62.1,"AFG":42.7,"IRN":49.5,"IRQ":43.8,"SYR":45.1,
+  "JOR":52.3,"ISR":67.2,"LBN":50.8,"SAU":46.8,"YEM":41.2,"OMN":51.6,
+  "ARE":55.3,"QAT":50.2,"KWT":48.7,"BHR":52.9,"TUR":42.2,"AZE":53.4,
+  "ARM":56.8,"GEO":60.2,"KAZ":54.7,"UZB":47.3,"TKM":46.1,"KGZ":55.9,
+  "TJK":51.2,"MNG":58.6,"CHN":52.1,"RUS":67.4,"UKR":61.8,"BLR":65.3,
+  "MDA":59.7,"ALB":62.4,"MKD":60.9,"SRB":62.7,"MNE":64.5,"BIH":63.2,
+  "PRK":44.8,"TGO":48.5,"BEN":51.3,"DOM":55.8,"GTM":60.0,"PSE":46.5,
+};
+
+// ── NUM_TO_ISO3 ───────────────────────────────────────────────────
+const NUM_TO_ISO3 = {
+  4:"AFG",8:"ALB",12:"DZA",16:"ASM",20:"AND",24:"AGO",28:"ATG",
+  32:"ARG",36:"AUS",40:"AUT",44:"BHS",48:"BHR",50:"BGD",51:"ARM",
+  52:"BRB",56:"BEL",60:"BMU",64:"BTN",68:"BOL",70:"BIH",72:"BWA",
+  76:"BRA",84:"BLZ",90:"SLB",96:"BRN",100:"BGR",104:"MMR",108:"BDI",
+  112:"BLR",116:"KHM",120:"CMR",124:"CAN",132:"CPV",140:"CAF",144:"LKA",
+  152:"CHL",156:"CHN",170:"COL",174:"COM",178:"COG",180:"COD",188:"CRI",
+  191:"HRV",192:"CUB",196:"CYP",203:"CZE",204:"BEN",208:"DNK",212:"DMA",
+  214:"DOM",218:"ECU",818:"EGY",222:"SLV",226:"GNQ",232:"ERI",233:"EST",
+  231:"ETH",238:"FLK",242:"FJI",246:"FIN",250:"FRA",266:"GAB",270:"GMB",
+  268:"GEO",276:"DEU",288:"GHA",300:"GRC",308:"GRD",320:"GTM",324:"GIN",
+  624:"GNB",328:"GUY",332:"HTI",340:"HND",348:"HUN",356:"IND",360:"IDN",
+  364:"IRN",368:"IRQ",372:"IRL",376:"ISR",380:"ITA",388:"JAM",392:"JPN",
+  400:"JOR",398:"KAZ",404:"KEN",408:"PRK",410:"KOR",414:"KWT",417:"KGZ",
+  418:"LAO",422:"LBN",426:"LSO",428:"LVA",430:"LBR",434:"LBY",440:"LTU",
+  442:"LUX",450:"MDG",454:"MWI",458:"MYS",462:"MDV",466:"MLI",470:"MLT",
+  478:"MRT",484:"MEX",496:"MNG",504:"MAR",508:"MOZ",516:"NAM",524:"NPL",
+  528:"NLD",540:"NCL",554:"NZL",558:"NIC",562:"NER",566:"NGA",578:"NOR",
+  586:"PAK",591:"PAN",598:"PNG",600:"PRY",604:"PER",608:"PHL",616:"POL",
+  620:"PRT",630:"PRI",634:"QAT",642:"ROU",643:"RUS",646:"RWA",659:"KNA",
+  662:"LCA",670:"VCT",678:"STP",682:"SAU",686:"SEN",694:"SLE",703:"SVK",
+  705:"SVN",706:"SOM",710:"ZAF",716:"ZWE",724:"ESP",728:"SSD",729:"SDN",
+  740:"SUR",752:"SWE",756:"CHE",760:"SYR",762:"TJK",764:"THA",768:"TGO",
+  780:"TTO",788:"TUN",792:"TUR",795:"TKM",800:"UGA",804:"UKR",784:"ARE",
+  826:"GBR",840:"USA",858:"URY",860:"UZB",862:"VEN",887:"YEM",894:"ZMB",
+  334:"ISL",31:"AZE",498:"MDA",275:"PSE",807:"MKD",688:"SRB",499:"MNE",
+  694:"SLE",262:"DJI",148:"TCD",174:"COM",584:"MHL",585:"PLW",583:"FSM",
+  520:"NRU",548:"VUT",882:"WSM",776:"TON",798:"TUV",296:"KIR",288:"GHA",
+};
+
+// ── NCI COLOR + BAND ──────────────────────────────────────────────
+function getNciColor(score){
+  if(score===undefined||score===null)return'#D3D1C7';
+  if(score>=80)return'#1D9E75';
+  if(score>=60)return'#97C459';
+  if(score>=40)return'#FAC775';
+  if(score>=20)return'#E24B4A';
+  return'#A32D2D';
+}
+function getNciBand(score){
+  if(score>=80)return{label:'Excellent',cls:'band-excellent'};
+  if(score>=60)return{label:'Good',cls:'band-good'};
+  if(score>=40)return{label:'Moderate',cls:'band-moderate'};
+  if(score>=20)return{label:'Poor',cls:'band-poor'};
+  return{label:'Critical',cls:'band-critical'};
+}
+
+// ── THEME ─────────────────────────────────────────────────────────
+const root=document.documentElement;
+if(localStorage.getItem('theme')==='dark')root.classList.add('dark');
+const themeBtn=document.getElementById('theme-toggle');
+function updateThemeBtn(){themeBtn.textContent=root.classList.contains('dark')?'☀️':'🌙';}
+themeBtn.addEventListener('click',()=>{
+  root.classList.toggle('dark');
+  localStorage.setItem('theme',root.classList.contains('dark')?'dark':'light');
+  applyGlobeTheme();
+  updateThemeBtn();
+});
+updateThemeBtn();
+function makeOceanTexture(color){
+  const c=document.createElement('canvas');
+  c.width=2;c.height=2;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle=color;ctx.fillRect(0,0,2,2);
+  return c.toDataURL();
+}
+
+function applyGlobeTheme(){
+  if(!window._globe)return;
+  const dark=root.classList.contains('dark');
+  const color=dark?'#0D2F6E':'#1565C0';
+  window._globe.atmosphereColor(color);
+  window._globe.backgroundColor('rgba(0,0,0,0)');
+  window._globe.globeImageUrl(makeOceanTexture(color));
+}
+
+function makeStarfield(){
+  const c=document.createElement('canvas');
+  c.width=1920;c.height=1080;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#000';ctx.fillRect(0,0,c.width,c.height);
+  for(let i=0;i<600;i++){
+    const x=Math.random()*c.width,y=Math.random()*c.height;
+    const r=Math.random()*1.4,op=(0.4+Math.random()*0.6).toFixed(2);
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${op})`;ctx.fill();
+  }
+  for(let i=0;i<40;i++){
+    const x=Math.random()*c.width,y=Math.random()*c.height;
+    ctx.beginPath();ctx.arc(x,y,1.2,0,Math.PI*2);
+    ctx.fillStyle=i%2===0?'rgba(180,210,255,0.8)':'rgba(255,230,200,0.7)';
+    ctx.fill();
+  }
+  document.body.style.backgroundImage=`url(${c.toDataURL()})`;
+  document.body.style.backgroundSize='cover';
+}
+makeStarfield();
+
+// ── GLOBE ─────────────────────────────────────────────────────────
+const globe=Globe({rendererConfig:{alpha:true,antialias:true}})(document.getElementById('globe-container'))
+  .width(window.innerWidth)
+  .height(window.innerHeight-48)
+  .backgroundColor('rgba(0,0,0,0)')
+  .showGraticules(false)
+  .showAtmosphere(true)
+  .atmosphereColor('#1565C0')
+  .atmosphereAltitude(0.15)
+  .globeImageUrl(makeOceanTexture('#1565C0'));
+
+window._globe=globe;
+
+globe.controls().autoRotate=true;
+globe.controls().autoRotateSpeed=0.4;
+globe.controls().enableDamping=true;
+
+const container=document.getElementById('globe-container');
+container.addEventListener('mouseenter',()=>{globe.controls().autoRotate=false});
+container.addEventListener('mouseleave',()=>{globe.controls().autoRotate=true});
+
+window.addEventListener('resize',()=>{
+  globe.width(window.innerWidth).height(window.innerHeight-48);
+});
+
+// ── NAV CAMERA SAVE ───────────────────────────────────────────────
+document.querySelectorAll('.nav-link').forEach(link=>{
+  link.addEventListener('click',()=>{
+    localStorage.setItem('iucn_camera',JSON.stringify(globe.pointOfView()));
+  });
+});
+
+// ── GLOBE READY ───────────────────────────────────────────────────
+globe.onGlobeReady(()=>{
+  applyGlobeTheme();
+
+  // Restore saved camera or use slightly zoomed-in default
+  const cam=JSON.parse(localStorage.getItem('iucn_camera')||'null');
+  if(cam){globe.pointOfView(cam,0)}
+  else{globe.pointOfView({lat:20,lng:0,altitude:1.8},0)}
+
+  fetch('https://unpkg.com/world-atlas@2/countries-110m.json')
+    .then(r=>r.json())
+    .then(world=>{
+      const countries=topojson.feature(world,world.objects.countries);
+
+      const sortedScores=Object.entries(NCI_SCORES).sort((a,b)=>b[1]-a[1]);
+      const rankMap={};
+      sortedScores.forEach(([iso3],i)=>{rankMap[iso3]=i+1});
+
+      globe
+        .polygonsData(countries.features)
+        .polygonCapColor(feat=>getNciColor(NCI_SCORES[NUM_TO_ISO3[+feat.id]]))
+        .polygonSideColor(()=>'rgba(0,0,0,0.04)')
+        .polygonStrokeColor(()=>'rgba(255,255,255,0.5)')
+        .polygonAltitude(0.01)
+        .polygonLabel(feat=>{
+          const iso3=NUM_TO_ISO3[+feat.id];
+          const score=NCI_SCORES[iso3];
+          const name=feat.properties?.name||iso3||'Unknown';
+          return score!==undefined
+            ?`<div style="background:rgba(0,0,0,0.78);color:#fff;padding:6px 10px;border-radius:6px;font-size:12px"><b>${name}</b><br/>NCI Score: ${score.toFixed(1)} / 100</div>`
+            :`<div style="background:rgba(0,0,0,0.78);color:#fff;padding:6px 10px;border-radius:6px;font-size:12px"><b>${name}</b><br/>No NCI data</div>`;
+        })
+        .onPolygonClick((feat,event)=>{
+          event.stopPropagation();
+          openCard(feat,NUM_TO_ISO3[+feat.id],rankMap);
+        });
+    });
+});
+
+// ── INFO CARD ─────────────────────────────────────────────────────
+function openCard(feat,iso3,rankMap){
+  const score=NCI_SCORES[iso3];
+  const name=feat.properties?.name||iso3||'Unknown country';
+  const rank=iso3?rankMap[iso3]:undefined;
+
+  const bbox=getFeatureBBox(feat);
+  const speciesHere=SPECIES_DATA.filter(s=>
+    s.lat>=bbox.minLat-5&&s.lat<=bbox.maxLat+5&&
+    s.lng>=bbox.minLng-5&&s.lng<=bbox.maxLng+5
+  ).slice(0,8);
+
+  let html=`<h2>${name}</h2>`;
+  if(score!==undefined){
+    const band=getNciBand(score);
+    html+=`<span class="score-band ${band.cls}">${score.toFixed(1)} / 100 — ${band.label}</span>`;
+    html+=`<div class="score-bar-wrap"><div class="score-bar" style="width:${score}%;background:${getNciColor(score)}"></div></div>`;
+    if(rank)html+=`<p class="rank-text">Ranked ${rank}${ordinal(rank)} of ${Object.keys(NCI_SCORES).length} countries</p>`;
+  }else{
+    html+=`<p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">No NCI 2024 data available.</p>`;
+  }
+  if(speciesHere.length>0){
+    html+=`<div class="card-section"><h3>Threatened species nearby</h3><div>`;
+    speciesHere.forEach(s=>{
+      const cls=s.status==='CR'?'chip-cr':s.status==='EN'?'chip-en':'chip-vu';
+      html+=`<span class="species-chip ${cls}">${s.status} ${s.common}</span>`;
+    });
+    html+=`</div></div>`;
+  }
+  html+=`<a href="https://biodb.com/table/nci-2024/" target="_blank" class="card-link">View NCI 2024 rankings ↗</a>`;
+
+  document.getElementById('info-card-body').innerHTML=html;
+  document.getElementById('info-card').style.display='block';
+
+  const c=getFeatureCentroid(feat);
+  globe.pointOfView({lat:c.lat,lng:c.lng,altitude:1.5},600);
+}
+
+function ordinal(n){const s=['th','st','nd','rd'];const v=n%100;return s[(v-20)%10]||s[v]||s[0]}
+
+function getFeatureBBox(feat){
+  let minLat=90,maxLat=-90,minLng=180,maxLng=-180;
+  const geom=feat.geometry;
+  if(!geom)return{minLat:-90,maxLat:90,minLng:-180,maxLng:180};
+  function collect(arr,depth){
+    if(depth===0){const[lng,lat]=arr;
+      if(lat<minLat)minLat=lat;if(lat>maxLat)maxLat=lat;
+      if(lng<minLng)minLng=lng;if(lng>maxLng)maxLng=lng;
+    }else arr.forEach(a=>collect(a,depth-1));
+  }
+  const d=geom.type==='Polygon'?1:2;
+  geom.coordinates.forEach(ring=>collect(ring,d));
+  return{minLat,maxLat,minLng,maxLng};
+}
+function getFeatureCentroid(feat){
+  const b=getFeatureBBox(feat);
+  return{lat:(b.minLat+b.maxLat)/2,lng:(b.minLng+b.maxLng)/2};
+}
+</script>
+</body>
+</html>
