@@ -1026,23 +1026,18 @@ window._globe=globe;
 
 globe.onGlobeReady(()=>{
   applyGlobeTheme();
-  // Restore camera position saved from another globe view
-  const cam=JSON.parse(localStorage.getItem('iucn_camera')||'null');
-  if(cam){
-    globe.pointOfView(cam,0);
-  } else {
-    globe.pointOfView({lat:20,lng:0,altitude:8},0);
-    setTimeout(()=>{
-      const startAlt=8, endAlt=1.8, dur=5000;
-      const t0=performance.now();
-      (function step(now){
-        const p=Math.min((now-t0)/dur,1);
-        const ease=1-Math.pow(1-p,3);
-        globe.pointOfView({lat:20,lng:0,altitude:startAlt+(endAlt-startAlt)*ease},0);
-        if(p<1)requestAnimationFrame(step);
-      })(performance.now());
-    },300);
-  }
+  // Always start with India centred
+  globe.pointOfView({lat:20,lng:78,altitude:8},0);
+  setTimeout(()=>{
+    const startAlt=8, endAlt=1.8, dur=5000;
+    const t0=performance.now();
+    (function step(now){
+      const p=Math.min((now-t0)/dur,1);
+      const ease=1-Math.pow(1-p,3);
+      globe.pointOfView({lat:20,lng:78,altitude:startAlt+(endAlt-startAlt)*ease},0);
+      if(p<1)requestAnimationFrame(step);
+    })(performance.now());
+  },300);
   // Load country outlines for visual reference
   fetch('https://unpkg.com/world-atlas@2/countries-110m.json')
     .then(r=>r.json())
