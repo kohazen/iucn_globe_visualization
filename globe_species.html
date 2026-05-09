@@ -127,7 +127,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 
 /* Sidebar panels */
 #intro-panel,#detail-panel{padding:20px}
-#featured-image-wrap{width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;margin-bottom:16px;background:var(--card-bg)}
+#featured-image-wrap{width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;margin-bottom:16px;background:var(--card-bg);position:relative;cursor:zoom-in}
 #featured-image{width:100%;height:100%;object-fit:cover;display:block}
 #featured-header h2{font-size:18px;font-weight:700;margin-bottom:4px}
 .scientific-name{font-style:italic;font-size:13px;color:var(--text-secondary);margin-bottom:8px}
@@ -278,6 +278,15 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 #img-overlay-close:hover{opacity:1}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .skeleton-img{position:absolute;inset:0;background:linear-gradient(90deg,var(--card-bg) 25%,var(--sidebar-border) 50%,var(--card-bg) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite}
+.zoom-pill{
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%) translateY(4px);
+  background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);
+  color:#fff;font-size:11px;font-weight:600;letter-spacing:0.3px;
+  padding:4px 10px;border-radius:20px;white-space:nowrap;pointer-events:none;
+  opacity:0;transition:opacity 0.2s ease,transform 0.2s ease;
+}
+#featured-image-wrap:hover .zoom-pill,
+#species-image-wrap:hover .zoom-pill{opacity:1;transform:translateX(-50%) translateY(0)}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 #species-header h2{font-size:17px;font-weight:700;margin-bottom:4px}
 .detail-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--sidebar-border)}
@@ -408,8 +417,9 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
       <div id="search-results"></div>
     </div>
     <div id="intro-panel">
-      <div id="featured-image-wrap">
+      <div id="featured-image-wrap" onclick="openImgOverlay(document.getElementById('featured-image').src)">
         <img id="featured-image" src="" alt="Bengal Tiger"/>
+        <span class="zoom-pill">🔍 Click to zoom</span>
       </div>
       <div id="featured-header">
         <h2>Bengal Tiger</h2>
@@ -455,6 +465,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
       <div id="species-image-wrap">
         <img id="species-image" src="" alt="" onclick="openImgOverlay(this.src)"/>
         <div id="species-image-skeleton" class="skeleton-img"></div>
+        <span class="zoom-pill">🔍 Click to zoom</span>
       </div>
       <div id="species-header">
         <h2 id="species-common-name"></h2>
