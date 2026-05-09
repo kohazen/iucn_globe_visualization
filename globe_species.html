@@ -69,10 +69,30 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
 #sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
 #sidebar::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2)}
 #sidebar-resize{
-  position:absolute;left:0;top:0;width:5px;height:100%;cursor:col-resize;z-index:20;
+  position:absolute;left:0;top:0;width:10px;height:100%;cursor:col-resize;z-index:20;
+  background:transparent;
+  display:flex;align-items:center;justify-content:center;
+}
+#sidebar-resize::after{
+  content:'';
+  position:absolute;left:4px;top:0;width:2px;height:100%;
   background:transparent;transition:background 0.15s;
 }
-#sidebar-resize:hover,#sidebar-resize.dragging{background:var(--accent);opacity:0.5;}
+#sidebar-resize:hover::after,#sidebar-resize.dragging::after{background:var(--accent);opacity:0.6;}
+#resize-grip{
+  position:absolute;top:50%;transform:translateY(-50%);
+  left:-14px;
+  width:28px;height:48px;border-radius:14px;
+  background:var(--sidebar-bg);border:1px solid var(--sidebar-border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:var(--text-secondary);
+  pointer-events:none;
+  opacity:0.55;transition:opacity 0.2s,background 0.2s;
+  box-shadow:0 2px 8px rgba(0,0,0,0.18);
+}
+#sidebar-resize:hover #resize-grip,#sidebar-resize.dragging #resize-grip{
+  opacity:1;background:var(--overlay-bg-hover);
+}
 #filter-panel{
   position:fixed;top:165px;left:16px;z-index:50;
   background:var(--overlay-bg);border:1px solid var(--glass-border);
@@ -472,7 +492,7 @@ body{background:var(--bg);color:var(--text-primary);font-family:'Inter',system-u
   </div>
 
   <div id="sidebar">
-    <div id="sidebar-resize"></div>
+    <div id="sidebar-resize"><div id="resize-grip">⇔</div></div>
     <div id="search-wrap">
       <span id="search-icon">🔍</span>
       <input id="search-input" type="text" placeholder="Search species…" autocomplete="off" spellcheck="false"/>
