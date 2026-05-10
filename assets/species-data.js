@@ -9,7 +9,7 @@ const SPECIES_DATA = [
   {id:0,name:"Panthera tigris sumatrae",common:"Sumatran Tiger",status:"CR",taxon:"MAMMALIA",lat:-5.7957,lng:104.5438},
   {id:0,name:"Diceros bicornis",common:"Black Rhino",status:"CR",taxon:"MAMMALIA",lat:-1.5637,lng:34.8512},
   {id:0,name:"Gorilla beringei graueri",common:"Grauer's Gorilla",status:"CR",taxon:"MAMMALIA",lat:-2.3096,lng:28.7538},
-  {id:0,name:"Lipotes vexillifer",common:"Baiji",status:"CR",taxon:"MAMMALIA",lat:31,lng:114.5},
+  {id:0,name:"Lipotes vexillifer",common:"Baiji",status:"CR",taxon:"MAMMALIA",lat:31.0995,lng:118.0335},
   {id:0,name:"Panthera tigris jacksoni",common:"Malayan Tiger",status:"CR",taxon:"MAMMALIA",lat:-5.7957,lng:104.5438},
   {id:0,name:"Balaenoptera musculus",common:"Blue Whale",status:"CR",taxon:"MAMMALIA",lat:9.6591,lng:81.6438},
   {id:0,name:"Eubalaena japonica",common:"North Pacific Right Whale",status:"CR",taxon:"MAMMALIA",lat:36.7601,lng:-122.185},

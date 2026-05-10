@@ -1815,6 +1815,13 @@ async function getINatObsCoords(sciName,hintLat=null,hintLng=null){
         const c=pick(data3.results||[]);
         if(c)return c;
       }
+      // Last resort: bare search — any quality, any obs, just find something
+      const res4=await fetch(`https://api.inaturalist.org/v2/observations?taxon_name=${encodeURIComponent(sciName)}&per_page=5&order_by=votes&fields=location,obscured`);
+      if(res4.ok){
+        const data4=await res4.json();
+        const c=pick(data4.results||[]);
+        if(c)return c;
+      }
     }
   }catch(e){}
   return null;
