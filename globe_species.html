@@ -1772,13 +1772,50 @@ async function getSpeciesCoords(assessmentId){
   return null;
 }
 
-async function getINatObsCoords(sciName){
+async function getINatObsCoords(sciName,hintLat=null,hintLng=null){
+  const base=`quality_grade=research&captive=false&native=true&geo=true&per_page=5&order_by=votes&fields=location,obscured,geoprivacy`;
+  const pick=arr=>{
+    const open=arr.find(o=>!o.obscured&&o.geoprivacy!=='obscured');
+    const obs=open||arr[0];
+    if(obs?.location){const[la,ln]=obs.location.split(',').map(Number);if(la&&ln)return[la,ln];}
+    return null;
+  };
   try{
-    const res=await fetch(`https://api.inaturalist.org/v1/observations?taxon_name=${encodeURIComponent(sciName)}&quality_grade=research&per_page=1&order_by=votes&native=true`);
+    const res=await fetch(`https://api.inaturalist.org/v2/observations?taxon_name=${encodeURIComponent(sciName)}&${base}`);
     if(!res.ok)return null;
     const data=await res.json();
-    const obs=data.results?.[0];
-    if(obs?.location){const[la,ln]=obs.location.split(',').map(Number);if(la&&ln)return[la,ln];}
+    const results=data.results||[];
+    const coords=pick(results);
+    if(coords)return coords;
+    // subspecies fallback: all obscured → retry with parent binomial + bbox if hint available
+    const parts=sciName.trim().split(/\s+/);
+    if(parts.length>=3&&results.length>0&&results.every(o=>o.obscured)){
+      const binomial=parts.slice(0,2).join(' ');
+      const BOX=20;
+      const bboxParams=hintLat!=null&&hintLng!=null
+        ?`&swlat=${hintLat-BOX}&swlng=${hintLng-BOX}&nelat=${hintLat+BOX}&nelng=${hintLng+BOX}`
+        :'';
+      const res2=await fetch(`https://api.inaturalist.org/v2/observations?taxon_name=${encodeURIComponent(binomial)}&${base}${bboxParams}`);
+      if(res2.ok){
+        const data2=await res2.json();
+        const c=pick(data2.results||[]);
+        if(c)return c;
+      }
+    }
+    // native=true returned 0 → retry without it BUT keep bbox from hint to stay in right region
+    if(results.length===0){
+      const base2=base.replace('native=true&','');
+      const BOX=30;
+      const bboxStr=hintLat!=null&&hintLng!=null
+        ?`&swlat=${hintLat-BOX}&swlng=${hintLng-BOX}&nelat=${hintLat+BOX}&nelng=${hintLng+BOX}`
+        :'';
+      const res3=await fetch(`https://api.inaturalist.org/v2/observations?taxon_name=${encodeURIComponent(sciName)}&${base2}${bboxStr}`);
+      if(res3.ok){
+        const data3=await res3.json();
+        const c=pick(data3.results||[]);
+        if(c)return c;
+      }
+    }
   }catch(e){}
   return null;
 }
@@ -1820,19 +1857,22 @@ async function addSpeciesFromIUCN(taxonResult,btnEl){
     }catch(e){}
     const status=['CR','EN','VU'].includes(rawStatus)?rawStatus:'NC';
 
-    // Coords: subspecies → iNat first (more specific than parent range)
+    // Coords: get IUCN country hint first (used as bbox anchor for obscured subspecies)
+    //         subspecies → iNat with hint, then IUCN centroid fallback
     //         species   → IUCN countries first, iNat as fallback
     let lat=0,lng=0;
+    let hintLat=null,hintLng=null;
+    if(assessId){
+      const h=await getSpeciesCoords(assessId);
+      if(h){hintLat=h[0];hintLng=h[1];}
+    }
     if(nameParts.length>=3){
-      const c=await getINatObsCoords(sciName);
+      const c=await getINatObsCoords(sciName,hintLat,hintLng);
       if(c){lat=c[0];lng=c[1];}
     }
-    if(!lat&&!lng&&assessId){
-      const c=await getSpeciesCoords(assessId);
-      if(c){lat=c[0];lng=c[1];}
-    }
+    if(!lat&&!lng&&hintLat!=null){lat=hintLat;lng=hintLng;}
     if(!lat&&!lng){
-      const c=await getINatObsCoords(sciName);
+      const c=await getINatObsCoords(sciName,null,null);
       if(c){lat=c[0];lng=c[1];}
     }
 
@@ -1945,7 +1985,7 @@ renderMySpeciesPanel();
   let patched=false;
   for(const s of USER_SPECIES){
     if(!s.lat&&!s.lng){
-      const c=await getINatObsCoords(s.name);
+      const c=await getINatObsCoords(s.name,null,null);
       if(c){s.lat=c[0];s.lng=c[1];patched=true;}
     }
   }
