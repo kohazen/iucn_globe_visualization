@@ -1774,11 +1774,14 @@ async function getSpeciesCoords(assessmentId){
 
 async function getINatObsCoords(sciName){
   try{
-    const res=await fetch(`https://api.inaturalist.org/v1/observations?taxon_name=${encodeURIComponent(sciName)}&quality_grade=research&per_page=1&order_by=votes`);
+    const res=await fetch(`https://api.inaturalist.org/v1/observations?taxon_name=${encodeURIComponent(sciName)}&quality_grade=research&per_page=10&order_by=votes`);
     if(!res.ok)return null;
     const data=await res.json();
-    const obs=data.results?.[0];
-    if(obs?.location){const[la,ln]=obs.location.split(',').map(Number);if(la&&ln)return[la,ln];}
+    for(const obs of data.results||[]){
+      if(!obs?.location)continue;
+      const[la,ln]=obs.location.split(',').map(Number);
+      if(la&&ln&&Math.abs(la)<=75)return[la,ln];
+    }
   }catch(e){}
   return null;
 }
