@@ -1777,11 +1777,15 @@ async function getINatObsCoords(sciName){
     const res=await fetch(`https://api.inaturalist.org/v1/observations?taxon_name=${encodeURIComponent(sciName)}&quality_grade=research&per_page=10&order_by=votes`);
     if(!res.ok)return null;
     const data=await res.json();
+    const pts=[];
     for(const obs of data.results||[]){
       if(!obs?.location)continue;
       const[la,ln]=obs.location.split(',').map(Number);
-      if(la&&ln&&Math.abs(la)<=75)return[la,ln];
+      if(la&&ln)pts.push([la,ln]);
     }
+    if(!pts.length)return null;
+    const med=arr=>{const s=[...arr].sort((a,b)=>a-b);const m=Math.floor(s.length/2);return s.length%2?s[m]:(s[m-1]+s[m])/2;};
+    return[med(pts.map(p=>p[0])),med(pts.map(p=>p[1]))];
   }catch(e){}
   return null;
 }
